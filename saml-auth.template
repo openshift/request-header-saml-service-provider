@@ -1,0 +1,174 @@
+{
+    "kind": "Template",
+    "apiVersion": "v1",
+    "metadata": {
+        "name": "saml-auth",
+        "creationTimestamp": null,
+        "annotations": {
+            "description": "SAML Authentication",
+            "iconClass": "icon-shadowman",
+            "tags": "instant-app,saml,authentication"
+        }
+    },
+    "objects": [
+        {
+            "apiVersion": "v1",
+            "kind": "Service",
+            "metadata": {
+                "annotations": {
+                    "description": "Exposes and load balances the application pods"
+                },
+                "name": "saml-auth"
+            },
+            "spec": {
+                "ports": [
+                    {
+                        "name": "web",
+                        "port": 443,
+                        "targetPort": 443
+                    }
+                ],
+                "selector": {
+                    "name": "saml-auth"
+                }
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Route",
+            "metadata": {
+                "name": "saml-auth"
+            },
+            "spec": {
+                "host": "${APPLICATION_DOMAIN}",
+                "to": {
+                    "kind": "Service",
+                    "name": "saml-auth"
+                }
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "ImageStream",
+            "metadata": {
+                "annotations": {
+                    "description": "Keeps track of changes in the application image"
+                },
+                "name": "saml-auth"
+            },
+            "spec": {
+                "dockerImageRepository": "docker.io/waynedovey/saml-auth"
+            },
+            "status": {
+                "dockerImageRepository": ""
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "DeploymentConfig",
+            "metadata": {
+                "annotations": {
+                    "description": "Defines how to deploy the application server"
+                },
+                "name": "saml-auth"
+            },
+            "spec": {
+                "replicas": 1,
+                "selector": {
+                    "name": "saml-auth"
+                },
+                "strategy": {
+                    "type": "Recreate"
+                },
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "name": "saml-auth"
+                        },
+                        "name": "saml-auth"
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "env": [
+                                    {
+                                        "name": "APACHE_PEM_1_OPENSHIFT",
+                                        "value": "${APACHE_PEM_1_OPENSHIFT}"
+                                    },
+                                    {
+                                        "name": "APACHE_PEM_2_OPENSHIFT",
+                                        "value": "${APACHE_PEM_2_OPENSHIFT}"
+                                    },
+                                    {
+                                        "name": "APACHE_PEM_3_OPENSHIFT",
+                                        "value": "${APACHE_PEM_3_OPENSHIFT}"
+                                    },
+                                    {
+                                        "name": "APACHE_PEM_4_OPENSHIFT",
+                                        "value": "${APACHE_PEM_4_OPENSHIFT}"
+                                    },
+                                    {
+                                        "name": "APACHE_PEM_5_OPENSHIFT",
+                                        "value": "${APACHE_PEM_5_OPENSHIFT}"
+                                    }
+                                ],
+                                "image": "docker.io/waynedovey/saml-auth",
+                                "name": "saml-auth",
+                                "ports": [
+                                    {
+                                        "containerPort": 443
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                },
+                "triggers": [
+                    {
+                        "imageChangeParams": {
+                            "automatic": true,
+                            "containerNames": [
+                                "saml-auth"
+                            ],
+                            "from": {
+                                "kind": "ImageStreamTag",
+                                "name": "saml-auth:latest"
+                            }
+                        },
+                        "type": "ImageChange"
+                    }
+                ]
+            },
+            "status": {}
+        }
+    ],
+    "parameters": [
+        {
+            "name": "APPLICATION_DOMAIN",
+            "description": "The exposed hostname that will route to the SAML service, if left blank a value will be defaulted."
+        },
+        {
+            "name": "APACHE_PEM_1_OPENSHIFT",
+            "description": "Apache SSL Certificate"
+        },
+        {
+            "name": "APACHE_PEM_2_OPENSHIFT",
+            "description": "Apache SSL Certificate"
+        },
+        {
+            "name": "APACHE_PEM_3_OPENSHIFT",
+            "description": "Apache SSL Certificate"
+        },
+        {
+            "name": "APACHE_PEM_4_OPENSHIFT",
+            "description": "Apache SSL Certificate"
+        },
+        {
+            "name": "APACHE_PEM_5_OPENSHIFT",
+            "description": "Apache SSL Certificate"
+        }
+    ],
+    "labels": {
+        "template": "saml-auth"
+    }
+}

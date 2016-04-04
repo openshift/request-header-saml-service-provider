@@ -1,0 +1,17 @@
+apiVersion: v1
+assetConfig:
+  logoutURL: "https://newsamlpoc2.australiasoutheast.cloudapp.azure.com/mellon/logout?ReturnTo=https://newsamlpoc2.australiasoutheast.cloudapp.azure.com/logged_out.html"
+####
+  identityProviders:
+  - name: my_request_header_idp
+    challenge: false
+    login: true
+    mappingMethod: add
+    provider:
+      apiVersion: v1
+      kind: RequestHeaderIdentityProvider
+      loginURL: "https://newsamlpoc2.australiasoutheast.cloudapp.azure.com/mod_auth_mellon/oauth/authorize?${query}"
+      clientCA: /etc/origin/master/proxyca.crt
+      headers:
+      - Remote-User
+####
