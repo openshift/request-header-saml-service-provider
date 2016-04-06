@@ -10,6 +10,9 @@ ADD httpd.conf /etc/httpd/conf/httpd.conf
 RUN rm -fr /etc/httpd/conf.d/welcome.conf
 ADD ssl.conf /etc/httpd/conf.d/ssl.conf
 ADD logged_out.html /var/www/html/logged_out.html
+RUN mkdir -p /etc/httpd/conf/ose_certs -m 755
+RUN mkdir -p /etc/httpd/conf/saml -m 755
+RUN mkdir -p /etc/httpd/conf/server_certs -m 755
 
 EXPOSE 443
 
@@ -17,3 +20,4 @@ ADD run-httpd.sh /run-httpd.sh
 RUN chmod -v +x /run-httpd.sh
 
 CMD ["/run-httpd.sh"]
+
