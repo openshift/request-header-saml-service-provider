@@ -44,6 +44,12 @@
                 "to": {
                     "kind": "Service",
                     "name": "saml-auth"
+                },
+                "port": {
+                    "targetPort": 443
+                },
+                "tls": {
+                    "termination": "passthrough"
                 }
             }
         },
@@ -73,7 +79,7 @@
                 "name": "saml-auth"
             },
             "spec": {
-                "replicas": 1,
+                "replicas": 0,
                 "selector": {
                     "name": "saml-auth"
                 },
@@ -124,6 +130,9 @@
                             }
                         },
                         "type": "ImageChange"
+                    },
+                    {
+                        "type": "ConfigChange"
                     }
                 ]
             },
