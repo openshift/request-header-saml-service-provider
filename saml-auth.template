@@ -57,7 +57,7 @@
                 "name": "saml-auth"
             },
             "spec": {
-                "dockerImageRepository": "docker.io/waynedovey/saml-auth"
+                "dockerImageRepository": "docker.io/mweetman/saml-auth"
             },
             "status": {
                 "dockerImageRepository": ""
@@ -92,27 +92,15 @@
                             {
                                 "env": [
                                     {
-                                        "name": "APACHE_PEM_1_OPENSHIFT",
-                                        "value": "${APACHE_PEM_1_OPENSHIFT}"
+                                        "name": "APPLICATION_DOMAIN",
+                                        "value": "${APPLICATION_DOMAIN}"
                                     },
                                     {
-                                        "name": "APACHE_PEM_2_OPENSHIFT",
-                                        "value": "${APACHE_PEM_2_OPENSHIFT}"
-                                    },
-                                    {
-                                        "name": "APACHE_PEM_3_OPENSHIFT",
-                                        "value": "${APACHE_PEM_3_OPENSHIFT}"
-                                    },
-                                    {
-                                        "name": "APACHE_PEM_4_OPENSHIFT",
-                                        "value": "${APACHE_PEM_4_OPENSHIFT}"
-                                    },
-                                    {
-                                        "name": "APACHE_PEM_5_OPENSHIFT",
-                                        "value": "${APACHE_PEM_5_OPENSHIFT}"
+                                        "name": "OSE_API_PUBLIC_URL",
+                                        "value": "${OSE_API_PUBLIC_URL}"
                                     }
                                 ],
-                                "image": "docker.io/waynedovey/saml-auth",
+                                "image": "docker.io/mweetman/saml-auth",
                                 "name": "saml-auth",
                                 "ports": [
                                     {
@@ -148,24 +136,8 @@
             "description": "The exposed hostname that will route to the SAML service, if left blank a value will be defaulted."
         },
         {
-            "name": "APACHE_PEM_1_OPENSHIFT",
-            "description": "Apache SSL Certificate"
-        },
-        {
-            "name": "APACHE_PEM_2_OPENSHIFT",
-            "description": "Apache SSL Certificate"
-        },
-        {
-            "name": "APACHE_PEM_3_OPENSHIFT",
-            "description": "Apache SSL Certificate"
-        },
-        {
-            "name": "APACHE_PEM_4_OPENSHIFT",
-            "description": "Apache SSL Certificate"
-        },
-        {
-            "name": "APACHE_PEM_5_OPENSHIFT",
-            "description": "Apache SSL Certificate"
+            "name": "OSE_API_PUBLIC_URL",
+            "description": "The OpenShift Enterprise API public URL"
         }
     ],
     "labels": {
