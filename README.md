@@ -3,7 +3,7 @@
 This Docker image is used for SAML authentication.
 
 # OpenShift Instructions #
-Secrets cannot have key names with 'underscore' present so we rename some of the files.
+Secrets cannot have key names with an 'underscore' in them, so when creating a secret using a directory of files we need to rename the files accordingly.
 
 Create the secret for the httpd saml configuration files (saml-sp.cert, saml-sp.key, saml-sp.xml, sp-idp-metadata.xml) 
 ```sh
@@ -40,11 +40,11 @@ oc create -f ./saml-auth.template -n openshift
 Create a new instance (test with '-o json', remove when satisfied with the result)
 ```sh
 oc new-app saml-auth \
-    -p APPLICATION_DOMAIN=saml.example.com,OSE_API_PUBLIC_URL=https://ose.example.com:8443 -o json
+    -p APPLICATION_DOMAIN=saml.example.com,OSE_API_PUBLIC_URL=https://ose.example.com:8443/ -o json
 ```
 
 
-Add secret for SAML config (saml_sp.cert,saml_sp.key,saml_sp.xml,sp-idp-metadata.xml)
+Add secret for SAML config (saml-sp.cert,saml-sp.key,saml-sp.xml,sp-idp-metadata.xml)
 ```sh
 oc volume deploymentconfigs/saml-auth \
      --add --overwrite --name=httpd-saml-config --mount-path=/etc/httpd/conf/saml \
