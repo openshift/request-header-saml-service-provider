@@ -112,7 +112,16 @@
                                     {
                                         "containerPort": 443
                                     }
-                                ]
+                                ],
+                                "readinessProbe": {
+                                    "httpGet": {
+                                        "path": "/logged_out.html",
+                                        "port": 443,
+                                        "scheme": "HTTPS"
+                                    },
+                                    "initialDelaySeconds": 10,
+                                    "timeoutSeconds": 1
+                                }
                             }
                         ]
                     }
