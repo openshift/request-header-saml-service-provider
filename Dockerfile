@@ -3,6 +3,10 @@ MAINTAINER Wayne Dovey <wdovey@redhat.com>
 
 LABEL Vendor="RedHat"
 
+RUN yum repolist --disablerepo=* && \
+    yum-config-manager --disable \* > /dev/null && \
+    yum-config-manager --enable rhel-7-server-rpms > /dev/null
+
 RUN yum -y install httpd mod_ssl mod_auth_mellon
 
 ADD openshift.conf /etc/httpd/conf.d/openshift.conf

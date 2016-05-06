@@ -104,6 +104,10 @@
                                     {
                                         "name": "OSE_API_PUBLIC_URL",
                                         "value": "${OSE_API_PUBLIC_URL}"
+                                    },
+                                    {
+                                        "name": "OSE_SAML_ATTRIBUTE_MAPPING",
+                                        "value": "${OSE_SAML_ATTRIBUTE_MAPPING}"
                                     }
                                 ],
                                 "image": "docker.io/mweetman/saml-auth",
@@ -156,6 +160,11 @@
         {
             "name": "OSE_API_PUBLIC_URL",
             "description": "The OpenShift Enterprise API public URL"
+        },
+        {
+            "name": "OSE_SAML_ATTRIBUTE_MAPPING",
+            "description": "SAML attribute mapping",
+            "value": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"
         }
     ],
     "labels": {
