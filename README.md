@@ -49,7 +49,7 @@ oc create -f ./saml-auth.template -n openshift
 Create a new application (test with '-o json', remove when satisfied with the result)
 ```sh
 oc new-app saml-auth \
-    -p APPLICATION_DOMAIN=saml.example.com,OSE_API_PUBLIC_URL=https://ose.example.com:8443/ -o json
+    -p APPLICATION_DOMAIN=saml.example.com,OSE_API_PUBLIC_URL=https://ose.example.com:8443/oauth/authorize -o json
 ```
 
 
@@ -84,4 +84,26 @@ oc volume deploymentconfigs/saml-auth \
 The template defines replicas as 0 so scale up:
 ```sh
 oc scale --replicas=1 dc saml-auth
+```
+
+Update /etc/origin/master/master-config.yml:
+```
+oauthConfig:
+  assetPublicURL: https://ose.example.com:8443/console/
+  grantConfig:
+    method: auto
+  identityProviders:
+  - name: my_request_header_idp
+    challenge: false
+    login: true
+    mappingMethod: add
+    provider:
+      apiVersion: v1
+      kind: RequestHeaderIdentityProvider
+      loginURL: "https://saml.example.com/mod_auth_mellon?${query}"
+      clientCA: /etc/origin/master/proxyca.crt
+      headers:
+      - Remote-User
+  masterCA: ca.crt
+
 ```
