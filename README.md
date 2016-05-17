@@ -26,13 +26,6 @@ cp server.crt server.key ./httpd-server-certs/
 oc secrets new httpd-server-certs-secret ./httpd-server-certs
 ```
 
-Create the secret for a custom CA cert - optional
-```sh
-cp /etc/origin/master/ca.crt ./
-oc secrets new httpd-custom-ca-cert-secret ./ca.crt
-```
-
-
 Create the docker image
 ```sh
 docker build --tag=saml-auth .
@@ -72,13 +65,6 @@ Add a secret for server certs (server.crt,server.key)
 oc volume deploymentconfigs/saml-auth \
      --add --overwrite --name=httpd-server-certs --mount-path=/etc/httpd/conf/server_certs \
      --type=secret --secret-name=httpd-server-certs-secret
-```
-
-Add a secret for a custom CA certificate (custom_ca.crt) - optional, duplicate for additional CA certs
-```sh
-oc volume deploymentconfigs/saml-auth \
-     --add --overwrite --name=httpd-custom-ca-cert --mount-path=/etc/pki/ca-trust/source/anchors/custom_ca.crt \
-     --type=secret --secret-name=httpd-custom-ca-cert-secret
 ```
 
 The template defines replicas as 0 so scale up:
