@@ -18,10 +18,12 @@ RUN mkdir -p /etc/httpd/conf/ose_certs -m 755
 RUN mkdir -p /etc/httpd/conf/saml -m 755
 RUN mkdir -p /etc/httpd/conf/server_certs -m 755
 
-EXPOSE 443
+EXPOSE 8443
 
 ADD run-httpd.sh /run-httpd.sh
 RUN chmod -v +x /run-httpd.sh
+RUN chmod -v a+rwx /run/httpd
+RUN chmod -v a+rwx /var/log/httpd
 
 CMD ["/run-httpd.sh"]
 

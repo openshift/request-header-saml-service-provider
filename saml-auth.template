@@ -25,7 +25,7 @@
                     {
                         "name": "web",
                         "port": 443,
-                        "targetPort": 443
+                        "targetPort": 8443
                     }
                 ],
                 "selector": {
@@ -114,13 +114,13 @@
                                 "name": "saml-auth",
                                 "ports": [
                                     {
-                                        "containerPort": 443
+                                        "containerPort": 8443
                                     }
                                 ],
                                 "readinessProbe": {
                                     "httpGet": {
                                         "path": "/logged_out.html",
-                                        "port": 443,
+                                        "port": 8443,
                                         "scheme": "HTTPS"
                                     },
                                     "initialDelaySeconds": 10,
