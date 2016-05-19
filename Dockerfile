@@ -24,6 +24,7 @@ ADD run-httpd.sh /run-httpd.sh
 RUN chmod -v +x /run-httpd.sh
 RUN chmod -v a+rwx /run/httpd
 RUN chmod -v a+rwx /var/log/httpd
+RUN chmod -Rv a+rwx /etc/pki/ca-trust/extracted/
 
 CMD ["/run-httpd.sh"]
 
