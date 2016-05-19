@@ -45,9 +45,6 @@
                     "kind": "Service",
                     "name": "saml-auth"
                 },
-                "port": {
-                    "targetPort": 443
-                },
                 "tls": {
                     "termination": "passthrough"
                 }
