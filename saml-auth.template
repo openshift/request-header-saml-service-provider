@@ -52,22 +52,6 @@
         },
         {
             "apiVersion": "v1",
-            "kind": "ImageStream",
-            "metadata": {
-                "annotations": {
-                    "description": "Keeps track of changes in the application image"
-                },
-                "name": "saml-auth"
-            },
-            "spec": {
-                "dockerImageRepository": "docker.io/mweetman/saml-auth"
-            },
-            "status": {
-                "dockerImageRepository": ""
-            }
-        },
-        {
-            "apiVersion": "v1",
             "kind": "DeploymentConfig",
             "metadata": {
                 "annotations": {
@@ -112,7 +96,7 @@
                                     }
 
                                 ],
-                                "image": "docker.io/mweetman/saml-auth",
+                                "image": "openshift3/saml-service-provider",
                                 "name": "saml-auth",
                                 "ports": [
                                     {
@@ -141,7 +125,8 @@
                             ],
                             "from": {
                                 "kind": "ImageStreamTag",
-                                "name": "saml-auth:latest"
+                                "name": "saml-service-provider:latest",
+                                "namespace": "openshift3"
                             }
                         },
                         "type": "ImageChange"
