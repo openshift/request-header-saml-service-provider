@@ -105,7 +105,12 @@
                                     {
                                         "name": "OSE_SAML_ATTRIBUTE_MAPPING",
                                         "value": "${OSE_SAML_ATTRIBUTE_MAPPING}"
+                                    },
+                                    {
+                                        "name": "LOG_LEVEL",
+                                        "value": "${LOG_LEVEL}"
                                     }
+
                                 ],
                                 "image": "docker.io/mweetman/saml-auth",
                                 "name": "saml-auth",
@@ -162,6 +167,11 @@
             "name": "OSE_SAML_ATTRIBUTE_MAPPING",
             "description": "SAML attribute mapping",
             "value": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"
+        },
+        {
+            "name": "LOG_LEVEL",
+            "description": "Logging level for mod_auth_mellon",
+            "value": "info"
         }
     ],
     "labels": {

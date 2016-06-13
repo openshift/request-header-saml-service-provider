@@ -1,5 +1,4 @@
 FROM rhel7
-MAINTAINER Wayne Dovey <wdovey@redhat.com>
 
 LABEL Vendor="RedHat"
 
