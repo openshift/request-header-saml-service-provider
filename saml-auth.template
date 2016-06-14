@@ -87,8 +87,8 @@
                                         "value": "${OSE_API_PUBLIC_URL}"
                                     },
                                     {
-                                        "name": "OSE_SAML_ATTRIBUTE_MAPPING",
-                                        "value": "${OSE_SAML_ATTRIBUTE_MAPPING}"
+                                        "name": "REMOTE_USER_SAML_ATTRIBUTE",
+                                        "value": "${REMOTE_USER_SAML_ATTRIBUTE}"
                                     },
                                     {
                                         "name": "LOG_LEVEL",
@@ -148,11 +148,11 @@
             "name": "OSE_API_PUBLIC_URL",
             "description": "The OpenShift Enterprise API public URL"
         },
-        {
-            "name": "OSE_SAML_ATTRIBUTE_MAPPING",
-            "description": "SAML attribute mapping",
-            "value": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"
-        },
+#        {
+#            "name": "REMOTE_USER_SAML_ATTRIBUTE",
+#            "description": "SAML attribute mapping",
+#            "value": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"
+#        },
         {
             "name": "LOG_LEVEL",
             "description": "Logging level for mod_auth_mellon",
