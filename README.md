@@ -200,7 +200,7 @@ oauthConfig:
     provider:
       apiVersion: v1
       kind: RequestHeaderIdentityProvider
-      loginURL: "https://sp.example.org/mod_auth_mellon?${query}"
+      loginURL: "https://sp.example.org/mod_auth_mellon/?${query}"
       clientCA: /etc/origin/master/ca.crt
       headers:
       - Remote-User
