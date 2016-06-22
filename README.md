@@ -17,7 +17,7 @@ following command:
 ```
 mkdir ./httpd-saml-config
 
-mellon_create_metadata.sh https://sp.example.org/mellon https://sp.example.org/mellon`
+mellon_create_metadata.sh https://sp.example.org/mellon https://sp.example.org/mellon
 
 # Note, Secrets cannot have key names with an 'underscore' in them, so when
 # creating metadata files with `mellon_create_metadata.sh` the resulting files
