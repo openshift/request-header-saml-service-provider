@@ -92,7 +92,7 @@
                                     }
 
                                 ],
-                                "image": "openshift3/saml-service-provider",
+                                "image": "${APPLICATION_IMAGE}",
                                 "name": "saml-auth",
                                 "ports": [
                                     {
@@ -143,6 +143,11 @@
         {
             "name": "OSE_API_PUBLIC_URL",
             "description": "The OpenShift Enterprise API public URL"
+        },
+        {
+            "name": "APPLICATION_IMAGE",
+            "description": "The image that used to deploy the SAML app"
+            "value": "openshift3/saml-service-provider"
         },
         {
             "name": "LOG_LEVEL",
