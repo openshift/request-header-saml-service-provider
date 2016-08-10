@@ -98,16 +98,7 @@
                                     {
                                         "containerPort": 8443
                                     }
-                                ],
-                                "readinessProbe": {
-                                    "httpGet": {
-                                        "path": "/logged_out.html",
-                                        "port": 8443,
-                                        "scheme": "HTTPS"
-                                    },
-                                    "initialDelaySeconds": 10,
-                                    "timeoutSeconds": 1
-                                }
+                                ]
                             }
                         ]
                     }
