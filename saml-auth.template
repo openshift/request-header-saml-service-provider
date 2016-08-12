@@ -100,10 +100,8 @@
                                     }
                                 ],
                                 "readinessProbe": {
-                                    "httpGet": {
-                                        "path": "/logged_out.html",
-                                        "port": 8443,
-                                        "scheme": "HTTPS"
+                                    "exec": {
+                                       "command": [ "/usr/bin/curl", "-k", "https://127.0.0.1:8443/logged_out.html" ]
                                     },
                                     "initialDelaySeconds": 10,
                                     "timeoutSeconds": 1
