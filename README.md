@@ -67,7 +67,7 @@ mkdir ./httpd-server-certs
 
 # Make sure you input the saml service provider hostname for the Common Name
 openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out ./httpd-server-certs/server.key
-openssl req -new -key server.key -out /tmp/server.csr
+openssl req -new -key ./httpd-server-certs/server.key -out /tmp/server.csr
 openssl x509 -req -days 365 -in /tmp/server.csr -signkey ./httpd-server-certs/server.key -out ./httpd-server-certs/server.crt
 ```
 
@@ -88,50 +88,10 @@ simply delete the secret and recreate it.  Then trigger a new deployment.
 ```
 oc delete secret <secret name>
 oc secrets new <secret name> <path>
-oc deploy saml-auth --latest
+oc rollout latest saml-auth
 ```
 
-### ImageStream preparation
-If building the image locally or pulling from another location it's helpful to
-create an ImageStream to simplify ongoing deployments.  As the cluster-admin
-this can be accomplished as follows:
-
-```
-# create a project for hosting the images
-oc new-project openshift3
-
-# allow all authenticated users to pull this image
-oadm policy add-cluster-role-to-group system:image-puller system:authenticated -n openshift3
-
-# Temporary workaround for https://github.com/openshift/origin/pull/9066
-oc policy add-role-to-user edit -z builder -n openshift3
-
-```
-
-At this point you can either manually build the image or pull it from another location.
-
-### Manually building the docker image
-Create the docker image
-```sh
-docker build --tag=saml-service-provider .
-```
-
-### Pushing the image to the internal docker registry
-
-Since the builder service account has access to create ImageStreams in the
-`openshift3` project we can use its token.
-
-```
-docker login -u unused -e unused -p `oc sa get-token builder -n openshift3` 172.30.36.214:5000
-
-# Find the internal registry IP or use DNS. In this example 172.30.36.214 is
-# the internal registry.
-oc get services | grep docker-registry
-docker tag <your.local.image/saml-service-provider> 172.30.36.214:5000/openshift3/saml-service-provider
-docker push 172.30.36.214:5000/openshift3/saml-service-provider
-
-```
-
+### Deploying the image
 Add saml-auth template to OSE - (required parameters: APPLICATION_DOMAIN, OSE_API_PUBLIC_URL)
 ```sh
 oc create -f ./saml-auth.template -n openshift
@@ -141,7 +101,7 @@ oc create -f ./saml-auth.template -n openshift
 Create a new application (test with '-o json', remove when satisfied with the result)
 ```sh
 oc new-app saml-auth \
-    -p APPLICATION_DOMAIN=sp.example.org,OSE_API_PUBLIC_URL=https://ose.example.com:8443/oauth/authorize -o json
+    -p APPLICATION_DOMAIN=sp.example.org -p OSE_API_PUBLIC_URL=https://ose.example.com:8443/oauth/authorize -o json
 ```
 
 
@@ -176,7 +136,7 @@ oc volume deploymentconfigs/saml-auth \
 ```
 
 The template defines replicas as 0.  This pod can be scaled to multiple
-replicates for high availability.
+replicas for high availability.
 ```sh
 oc scale --replicas=1 dc saml-auth
 ```
@@ -186,7 +146,7 @@ volumes that are mounted.
 
 ### Master configuration changes.
 
-Update /etc/origin/master/master-config.yml:
+Update /etc/origin/master/master-config.yaml:
 ```
 oauthConfig:
   assetPublicURL: https://ose.example.com:8443/console/
@@ -204,7 +164,8 @@ oauthConfig:
       clientCA: /etc/origin/master/ca.crt
       headers:
       - Remote-User
-  masterCA: ca.crt
+  masterCA: ca-bundle.crt
+...
 
 ```
 
@@ -214,3 +175,47 @@ assetConfig:
 ```
 
 Restart the master(s) at this point for the configuration to take effect.
+
+### Making local modifications
+
+#### ImageStream preparation
+If building the image locally or pulling from another location it's helpful to
+create an ImageStream to simplify ongoing deployments.  As the cluster-admin
+this can be accomplished as follows:
+
+```
+# create a project for hosting the images
+oc new-project openshift3
+
+# allow all authenticated users to pull this image
+oadm policy add-cluster-role-to-group system:image-puller system:authenticated -n openshift3
+
+```
+
+At this point you can either manually build the image or pull it from another location.
+
+### Manually building the docker image
+Create the docker image
+```sh
+docker build --tag=saml-service-provider .
+```
+
+#### Pushing the image to the internal docker registry
+
+Since the builder service account has access to create ImageStreams in the
+`openshift3` project we can use its token.
+
+```
+docker login -u unused -e unused -p `oc sa get-token builder -n openshift3` 172.30.36.214:5000
+
+# Find the internal registry IP or use DNS. In this example 172.30.36.214 is
+# the internal registry.
+oc get services | grep docker-registry
+docker tag <your.local.image/saml-service-provider> 172.30.36.214:5000/openshift3/saml-service-provider
+docker push 172.30.36.214:5000/openshift3/saml-service-provider
+
+# If this is your first time deploying the saml pod you will need to manually scale up
+oc scale --replicas=1 dc saml-auth
+
+```
+

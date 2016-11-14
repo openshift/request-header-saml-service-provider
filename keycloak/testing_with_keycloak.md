@@ -35,7 +35,7 @@ service provider pod in your environment.
 
 ###Creating the SAML metadata
 Now create a new Client in Keycloak matching the name of your service.  On the
-Settings page added the following `Valid Redirect URIs`
+Settings page add the following `Valid Redirect URIs`
 
 ```
 https://sp.example.org/*
