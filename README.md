@@ -92,7 +92,7 @@ oc rollout latest saml-auth
 ```
 
 ### Deploying the image
-Add saml-auth template to OSE - (required parameters: APPLICATION_DOMAIN, OSE_API_PUBLIC_URL)
+Add saml-auth template to OSE - (required parameters: APPLICATION_DOMAIN, PROXY_PATH, PROXY_DESTINATION)
 ```sh
 oc create -f ./saml-auth.template -n openshift
 ```
@@ -101,7 +101,7 @@ oc create -f ./saml-auth.template -n openshift
 Create a new application (test with '-o json', remove when satisfied with the result)
 ```sh
 oc new-app saml-auth \
-    -p APPLICATION_DOMAIN=sp.example.org -p OSE_API_PUBLIC_URL=https://ose.example.com:8443/oauth/authorize -o json
+    -p APPLICATION_DOMAIN=sp.example.org -p PROXY_PATH=/oauth/ -p PROXY_DESTINATION=https://ose.example.com:8443/oauth/ -o json
 ```
 
 
@@ -160,7 +160,7 @@ oauthConfig:
     provider:
       apiVersion: v1
       kind: RequestHeaderIdentityProvider
-      loginURL: "https://sp.example.org/mod_auth_mellon/?${query}"
+      loginURL: "https://sp.example.org/oauth/authorize?${query}"
       clientCA: /etc/origin/master/ca.crt
       headers:
       - Remote-User
