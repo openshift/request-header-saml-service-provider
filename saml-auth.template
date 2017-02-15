@@ -83,8 +83,12 @@
                                         "value": "${APPLICATION_DOMAIN}"
                                     },
                                     {
-                                        "name": "OSE_API_PUBLIC_URL",
-                                        "value": "${OSE_API_PUBLIC_URL}"
+                                        "name": "PROXY_PATH",
+                                        "value": "${PROXY_PATH}"
+                                    },
+                                    {
+                                        "name": "PROXY_DESTINATION",
+                                        "value": "${PROXY_DESTINATION}"
                                     },
                                     {
                                         "name": "LOG_LEVEL",
@@ -139,8 +143,14 @@
             "description": "The exposed hostname that will route to the SAML service, if left blank a value will be defaulted."
         },
         {
-            "name": "OSE_API_PUBLIC_URL",
-            "description": "The OpenShift Enterprise API public URL"
+            "name": "PROXY_PATH",
+            "description": "The root path that will proxy to the OpenShift Enterprise OAuth server, with a trailing slash (e.g. /oauth/)",
+            "required": true
+        },
+        {
+            "name": "PROXY_DESTINATION",
+            "description": "The full URL, including port and path, with a trailing slash, that the PROXY_PATH should proxy (e.g. https://api.example.com:8443/oauth/)",
+            "required": true
         },
         {
             "name": "LOG_LEVEL",
