@@ -10,7 +10,7 @@ The service provider pod in this example is `sp.example.org`.  It will only
 need to resolve on the system running the web browser that is testing the
 authentication.
 
-## install keycloak
+## Installing keycloak
 
 Install a containerized version of keycloak:
 
@@ -33,7 +33,7 @@ service provider pod in your environment.
 | Single Sign-On Service URL | https://sp.example.org/mellon/postResponse |
 | Single Logout Service URL | https://sp.example.org/mellon/logout | 
 
-###Creating the SAML metadata
+### Creating the SAML metadata
 Now create a new Client in Keycloak matching the name of your service.  On the
 Settings page add the following `Valid Redirect URIs`
 
@@ -62,6 +62,6 @@ mv client-cert.pem saml-sp.cert
 mv client-private-key.pem saml-sp.key
 ```
 
-###Creating a User
+### Creating a User
 Now create a user for authentication in Keycloak.  Make sure to set a password
 in the `Credentials` tab.
