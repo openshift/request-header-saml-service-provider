@@ -1,5 +1,8 @@
 LogLevel ${LOG_LEVEL}
 
+DumpIOInput  On
+DumpIOOutput On
+
 # Nothing needs to be served over HTTP.  This virtual host simply redirects to
 # HTTPS.
 <VirtualHost *:8080>
