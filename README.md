@@ -7,9 +7,13 @@ The deployment of this pod involves loading a template and using it to create a
 new application.  This running pod will mount in secrets for all custom
 configuration.
 
-## Create place to store SAML config files
+## Create place to store SAML config files and this project
 ```
-mkdir ~/saml-config
+SAML_CONFIG_DIR=~/saml-config
+mkdir $SAML_CONFIG_DIR
+pushd $SAML_CONFIG_DIR
+git clone https://github.com/openshift/request-header-saml-service-provider.git
+popd
 ```
 
 ## SAML Metadata
