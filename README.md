@@ -1,6 +1,22 @@
-# README
+# request-header-saml-service-provider
 
-This Docker image is used for SAML authentication.
+This image and associated instructions are used to set up OpenShift [Request header](https://docs.openshift.com/container-platform/3.11/install_config/configuring_authentication.html#RequestHeaderIdentityProvider) authentication between a SAML IdP and OpenShift with mod_auth_mellon acting as a SAML Proxy.
+
+The high level communication flow that is created by implimenting this solution is:
+1. OCP Console
+2. SAML Proxy SP (this project)
+3. Your SAML IdP
+4. SAML Proxy SP (this project)
+5. OCP oAuth
+6. OCP console
+
+# Outline
+* [Outline](#outline)
+* [Terms](#terms)
+* [Authentication not Authorization](#authentication-not-authorization)
+* [OpenShift Instructions](#openshift-instructions)
+* [Debuging](#debuging)
+* [Apendex](#apendex)
 
 # Terms
 Helpful terms and their defintions used throughout thid document.
@@ -10,6 +26,10 @@ Helpful terms and their defintions used throughout thid document.
 | SP         | Service Provider
 | IdP        | Identity Provider
 | SAML Proxy | The Apache mod\_mellon\_saml container deployed by these instructions to proxy the SAML communication from your IdP to OpenSHift via the RequestHeader Authentication OpenShift oAuth provider. In the context of the SAML communication the SAML proxy is also the SP even though it is acting as a go between for OpenShift. 
+
+# Authentication not Authorization
+
+This solution will impliment SAML based authentication for your OpenShift cluster. For authorization the most common solution is [Syncing groups With LDAP](https://docs.openshift.com/container-platform/3.11/install_config/syncing_groups_with_ldap.html) and ensuing the `user` identity provided by your SAML IdP matches the user's identity in your LDAP.
 
 # OpenShift Instructions
 The deployment of this pod involves loading a template and using it to create a
@@ -217,25 +237,59 @@ assetConfig:
 
 Restart the master(s) at this point for the configuration to take effect.
 
-### Making local modifications
-
-#### ImageStream preparation
-If building the image locally or pulling from another location it's helpful to
-create an ImageStream to simplify ongoing deployments.  As the cluster-admin
-this can be accomplished as follows:
-
-```
-# create a project for hosting the images
-oc new-project openshift3
-
-# allow all authenticated users to pull this image
-oadm policy add-cluster-role-to-group system:image-puller system:authenticated -n openshift3
-
-```
-
 At this point you can either manually build the image or pull it from another location.
 
-### Manually building the docker image
+# Debuging
+It is all but 100% guarinteed the OCP Console -> SAML Proxy SP -> Your SAML IdP -> SAML Proxy SP -> OCP oAuth -> OCP console workflow implimented by these instructiosn will not work on the first try, and therefor here are some steps for debugging.
+
+## Using the debug image
+This project provides, and automatically builds (assuming you followed these instructions) a helpful debug image. It is very important to note this debug image should only be used during debuging and should not be used when going live in "production".
+
+The debug image enables `mod_auth_mellon-diagnostics` and `mod_dumpio` both of which reduce performance and output security senstive logs you would not normally wont in a production setting.
+
+To use the debug image:
+```sh
+oc project ${SAML_OCP_PROJECT}
+oc set triggers dc/saml-auth --containers=saml-auth --from-image=saml-service-provider-debug:latest 
+```
+
+To go back to the production image
+```sh
+oc project ${SAML_OCP_PROJECT}
+oc set triggers dc/saml-auth --containers=saml-auth --from-image=saml-service-provider:latest 
+```
+
+## Common Issues
+TODO
+
+## Reducing Debug Footprint
+While debuging it is helpful if you reduce the places you need to look for logs. It is then suggested that you:
+
+1. scale the `saml-auth` service to 1 pod so there is only one place for SAML Proxy logs
+2. update your load balancer for the OpenShift `masterURL` and `masterPublicURL` to only your first OpenShift master so there is only one OpenShift master to monitor for logs
+
+## Debug logs
+Helpful logs to look at while debuging.
+
+### SAML Proxy Container
+This is assuming you are using the debug image.
+
+* `/var/log/httpd/mellon_diagnostics`
+  * contains the output of `mod_auth_mellon-diagnostics`
+* `/var/log/httpd/error_log`
+  * contains the output of `mod_dumpio` plus other helpful logs
+* `/var/log/httpd/ssl_access_log`
+  * helpful for knowing if OCP Console is at least redirecting to SAML Proxy correctly
+
+### OpenShift Master
+
+* `journalctl -lafu atomic-openshift-master-api | tee > /tmp/master-api-logs`
+  * useful for debuging the communication between OCP oAuth and SAML Proxy
+
+# Apendex
+## Manually building the docker images
+The required images are automatically built by the `saml-auth-template.yml` in the [Deploying SAML Proxy](#Deploying SAML Proxy) step so manually building the image is only needed if you want to experiment locally.
+
 Create the docker image
 ```sh
 pushd saml-service-provider
@@ -252,23 +306,4 @@ pushd saml-service-provider
 docker build --tag=saml-service-provider -f Dockerfile .
 docker build --tag=saml-service-provider-debug -f Dockerfile.debug .
 popd
-```
-
-#### Pushing the image to the internal docker registry
-
-Since the builder service account has access to create ImageStreams in the
-`openshift3` project we can use its token.
-
-```
-docker login -u unused -e unused -p `oc sa get-token builder -n openshift3` 172.30.36.214:5000
-
-# Find the internal registry IP or use DNS. In this example 172.30.36.214 is
-# the internal registry.
-oc get services | grep docker-registry
-docker tag <your.local.image/saml-service-provider> 172.30.36.214:5000/openshift3/saml-service-provider
-docker push 172.30.36.214:5000/openshift3/saml-service-provider
-
-# If this is your first time deploying the saml pod you will need to manually scale up
-oc scale --replicas=1 dc saml-auth
-
 ```
