@@ -1,5 +1,11 @@
 LogLevel ${LOG_LEVEL}
 
+# Enable DumpIO
+# NOTE 0: This should only be used for debuging and not in production use
+# NOTE 1: this logs of all input received by Apache and/or all output sent by
+#         Apache to be logged (dumped) to the error.log file.
+# NOTE 2: This log may contain security sensitive information which
+          should not normally be written to a log file
 DumpIOInput  On
 DumpIOOutput On
 
@@ -13,9 +19,10 @@ DumpIOOutput On
 
 <VirtualHost *:8443>
   # Enable Mellon Diagnostics
+  # NOTE 0: This should only be used for debuging and not in production use
   # NOTE 1: Diagnostic logging adds overhead to the execution of ``mod_auth_mellon``
   # NOTE 2: In addition the diagnostic log file may contain security sensitive information which
-  # should not normally be written to a log file.
+  #         should not normally be written to a log file.
   MellonDiagnosticsEnable On
 
   # This needs to match the certificates you generated.  See the CN and X509v3
@@ -40,7 +47,7 @@ DumpIOOutput On
   RewriteCond %{HTTP:X-Csrf-Token} ^$ [NC]		
   RewriteRule ^.* - [F,L]
 
-<Location />
+  <Location />
     # Add mod_auth_mellon info to all contexts
     MellonEnable "info"
     
@@ -57,10 +64,9 @@ DumpIOOutput On
 
     # idp metadata
     MellonIdPMetadataFile /etc/httpd/conf/saml/sp-idp-metadata.xml
+  </Location>
 
-</Location>
-
-<Location ${PROXY_PATH}>
+  <Location ${PROXY_PATH}>
     # Protect with auth
     MellonEnable "auth"
 
@@ -95,9 +101,7 @@ DumpIOOutput On
        MellonSetEnv preferred_username ${REMOTE_USER_PREFERRED_USERNAME_SAML_ATTRIBUTE}
        RequestHeader set Remote-User-Preferred-Username %{MELLON_preferred_username}e env=MELLON_preferred_username
     </If>
-
-</Location>
-
+  </Location>
 </VirtualHost>
 
 RequestHeader unset Remote-User

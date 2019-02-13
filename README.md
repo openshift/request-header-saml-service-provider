@@ -202,13 +202,20 @@ At this point you can either manually build the image or pull it from another lo
 ### Manually building the docker image
 Create the docker image
 ```sh
+pushd saml-service-provider
 docker build --tag=saml-service-provider -f Dockerfile .
+popd
 ```
 
-Create the debug docker image. This image has the `mod_auth_mellon-diagnostics` module installed and enabled to aid in troubleshooting.
-This image should *NOT* be used for perminate production deployments, but rather only troubleshooting deployments.
+Create the debug docker image. This image has the `mod_auth_mellon-diagnostics` and `mod_dumpio` modules
+installed and enabled to aid in troubleshooting.
+This image should __NOT__ be used for perminate production deployments, but rather only troubleshooting deployments.
+This image depends on the base image being built first.
 ```sh
+pushd saml-service-provider
+docker build --tag=saml-service-provider -f Dockerfile .
 docker build --tag=saml-service-provider-debug -f Dockerfile.debug .
+popd
 ```
 
 #### Pushing the image to the internal docker registry

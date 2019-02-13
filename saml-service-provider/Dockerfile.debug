@@ -1,0 +1,14 @@
+FROM saml-service-provider
+LABEL Vendor="RedHat"
+
+RUN yum-config-manager --enable rhel-7-server-optional-rpms > /dev/null && \
+    yum-config-manager --enable rhel-7-server-extras-rpms > /dev/null
+
+RUN yum -y install \
+  mod_auth_mellon-diagnostics \
+  mod_dumpio
+
+ADD openshift.conf.debug /etc/httpd/conf.d/openshift.conf
+ADD 10-auth_mellon.conf.debug /etc/httpd/conf.modules.d/10-auth_mellon.conf
+
+CMD ["/run-httpd.sh"]
