@@ -27,7 +27,7 @@ new application.  This running pod will mount in secrets for all custom
 configuration.
 
 ## Setup
-Manual setups steps to make the rest of this go a lot smoother.
+Manual setups steps to do ahead of time to make the rest of this go a lot smoother.
 
 ### Request your IdP Metadata
 Skip to setp [Get your IdP Provided metadata](#Get your IdP Provided metadata) and request your IdP metadata now so you will have it by the time you need it.
@@ -134,7 +134,9 @@ cp /etc/origin/master/ca.crt ${SAML_CONFIG_DIR}/httpd-ose-certs/ca.crt
 The saml service provider pod will itself expose a TLS endpoint.  The OpenShift
 Router will use TLS passthrough to allow it to terminate the connection. 
 
-__NOTE__: these instructions use the OCP CA to sign the cert. The other option is to get your own signed certificate.
+__NOTE__: These instructions use the OCP CA to sign the cert. The other option is to get your own signed certificate. It is recomended you get an organizationally trusted CA to sign this certifcate for production use otherwise users will see their browsers prompting them to accept this certificate when they try to log in via SAML.
+
+
 ```sh
 mkdir ./httpd-server-certs
 
@@ -250,7 +252,30 @@ oc set triggers dc/saml-auth --containers=saml-auth --from-image=saml-service-pr
 ```
 
 ## Common Issues
-TODO
+Common issues you will run into while getting this to work.
+
+### NameIDFormat
+By default when you [Generate SP SAML Metadata](#generate-sp-saml-metadata) there is no `NameIDFormat` specified. Apache [mod_auth_mellon](https://github.com/Uninett/mod_auth_mellon/blob/master/doc/user_guide/mellon_user_guide.adoc#485-how-do-you-specify-the-nameid-format-in-saml) defaults to a setting of `transient`. If your IdP is expecting a different setting then you could end up with errors, most likely presenting your IdP error logs.
+
+If there is a missmatch, then manually update your `saml-sp.xml` with the correct `NameIDFormat` and [recreate](#making-changes-to-secrets) the `httpd-saml-config-secret` secrete.
+
+For more information on `NameIDFormat` see the mod_auth_mellon doc [4.8.5. How do you specify the NameID format in SAML?](https://github.com/Uninett/mod_auth_mellon/blob/master/doc/user_guide/mellon_user_guide.adoc#485-how-do-you-specify-the-nameid-format-in-saml).
+
+### IdP Attribute names missmatch
+In theory the `REMOTE_USER_SAML_ATTRIBUTE`, `REMOTE_USER_NAME_SAML_ATTRIBUTE`, `REMOTE_USER_EMAIL_SAML_ATTRIBUTE`, and `REMOTE_USER_PREFERRED_USERNAME_SAML_ATTRIBUTE` should allow you to arbitrarly set what the IdP attribute names are for those fields and map them accordingly to the RequestHeaders, in practice, this doesn't seem to work and can cause confusion. It is recomended (possibly required) that the IdP attributes returned exactly match:
+
+* `user` - Required. The unique user ID for the authenticating user. This should align with the LDAP server you plan to use for authorization, AKA LDAP group sync.
+* `name` - Optional. Human full name of the user. This is used for display purposes in the UI.
+* `email` - Optional. E-mail address of the user.
+* `preferred_username` - Optional. Preferred user name, if different than the immutable identity determined from the headers specified in headers.
+
+If there is an issue with attributes being matched correctly you could end up seeing:
+
+* infinite redirect loop between OCP oAuth and SAML Proxy
+* SAML Proxy debug container `/var/log/httpd/error_log` will show that the ResponseHeaders are not being set correctly even though the `/var/log/httpd/mellon_diagnostics` show your attributes coming back from the IdP
+
+### clientCA not the CA that signed your SAML Proxy client certificates
+if the `clientCA` value set in the [OpenShift master configuration changes](#openshift-master-configuration-changes) step is not the CA that signed the [Create SAML Proxy Client Certificates](#create-saml-proxy-client-certificates) then you could see an infinite redirect between OpenShift oAuth and SAML Proxy or other certificate errors in the browser or various logs.
 
 ## Reducing Debug Footprint
 While debuging it is helpful if you reduce the places you need to look for logs. It is then suggested that you:
@@ -272,9 +297,13 @@ This is assuming you are using the debug image.
   * helpful for knowing if OCP Console is at least redirecting to SAML Proxy correctly
 
 ### OpenShift Master
+It helps if first you follow [Reducing Debug Footprint](#reducing-debug-footprint) so there is only one OpenShift master set of logs to look at.
 
 * `journalctl -lafu atomic-openshift-master-api | tee > /tmp/master-api-logs`
   * useful for debuging the communication between OCP oAuth and SAML Proxy
+  
+### IdP
+It can not be stressed enough the importance of having your local IdP administrator be involved with your debuging efforts. The speed at which you can resolve issues is expontential if you can have them monitoring the IdP logs at the same time you are doing your initial testing and reporting back what errors they see, and or, even better, screen sharing those logs with you.
 
 # Apendex
 ## Terms
