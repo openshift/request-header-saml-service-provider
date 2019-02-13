@@ -113,7 +113,84 @@ objects:
           name: saml-service-provider:latest
       type: ImageChange
     - type: ConfigChange
-  status: {}
+- apiVersion: image.openshift.io/v1
+  kind: ImageStream
+  metadata:
+    labels:
+      app: saml-service-provider
+    name: saml-service-provider
+  spec:
+    lookupPolicy:
+      local: false
+- apiVersion: image.openshift.io/v1
+  kind: ImageStream
+  metadata:
+    labels:
+      app: saml-service-provider-debug
+    name: saml-service-provider-debug
+  spec:
+    lookupPolicy:
+      local: false
+- apiVersion: build.openshift.io/v1
+  kind: BuildConfig
+  metadata:
+    labels:
+      build: saml-service-provider
+    name: saml-service-provider
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: saml-service-provider:latest
+    postCommit: {}
+    resources: {}
+    runPolicy: Serial
+    source:
+      contextDir: /saml-service-provider
+      git:
+        uri: "${SAML_SERVICE_PROVIDER_IMAGE_URI}"
+        ref: "${SAML_SERVICE_PROVIDER_IMAGE_REF}"
+      type: Git
+    strategy:
+      dockerStrategy:
+        dockerfilePath: Dockerfile
+      type: Docker
+    triggers:
+    - type: ConfigChange
+    successfulBuildsHistoryLimit: 5
+    failedBuildsHistoryLimit: 5
+- apiVersion: build.openshift.io/v1
+  kind: BuildConfig
+  metadata:
+    labels:
+      build: saml-service-provider-debug
+    name: saml-service-provider-debug
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: saml-service-provider-debug:latest
+    postCommit: {}
+    resources: {}
+    runPolicy: Serial
+    source:
+      contextDir: /saml-service-provider
+      git:
+        uri: "${SAML_SERVICE_PROVIDER_IMAGE_URI}"
+        ref: "${SAML_SERVICE_PROVIDER_IMAGE_REF}"
+      type: Git
+    strategy:
+      dockerStrategy:
+        dockerfilePath: Dockerfile.debug
+        from:
+          kind: ImageStreamTag
+          name: 'saml-service-provider:latest'
+      type: Docker
+    triggers:
+    - type: ImageChange
+      imageChange: {}
+    successfulBuildsHistoryLimit: 5
+    failedBuildsHistoryLimit: 5
 parameters:
 - name: APPLICATION_DOMAIN
   description: The exposed hostname that will route to the SAML service, if left blank
@@ -141,3 +218,9 @@ parameters:
 - name: REMOTE_USER_PREFERRED_USERNAME_SAML_ATTRIBUTE
   description: IdP SAML attribute for a preferred user name, if different than the immutable identity determined from the headers specified in headers.
   value: preferred_username
+- name: SAML_SERVICE_PROVIDER_IMAGE_URI
+  description: URI to the git project contianing the saml-service-provider image definintion
+  value: https://github.com/openshift/request-header-saml-service-provider.git
+- name: SAML_SERVICE_PROVIDER_IMAGE_REF
+  description: Git ref contianing the saml-service-provider image definintion
+  value: master
