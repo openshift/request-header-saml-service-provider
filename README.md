@@ -12,20 +12,10 @@ The high level communication flow that is created by implimenting this solution 
 
 # Outline
 * [Outline](#outline)
-* [Terms](#terms)
 * [Authentication not Authorization](#authentication-not-authorization)
 * [OpenShift Instructions](#openshift-instructions)
 * [Debuging](#debuging)
-* [Apendex](#apendex)
-
-# Terms
-Helpful terms and their defintions used throughout thid document.
-
-| Term       | Meaning
-|------------|--------
-| SP         | Service Provider
-| IdP        | Identity Provider
-| SAML Proxy | The Apache mod\_mellon\_saml container deployed by these instructions to proxy the SAML communication from your IdP to OpenSHift via the RequestHeader Authentication OpenShift oAuth provider. In the context of the SAML communication the SAML proxy is also the SP even though it is acting as a go between for OpenShift. 
+* [Apendex](#apendex) 
 
 # Authentication not Authorization
 
@@ -287,6 +277,15 @@ This is assuming you are using the debug image.
   * useful for debuging the communication between OCP oAuth and SAML Proxy
 
 # Apendex
+## Terms
+Helpful terms and their defintions used throughout thid document.
+
+| Term       | Meaning
+|------------|--------
+| SP         | Service Provider
+| IdP        | Identity Provider
+| SAML Proxy | The Apache mod\_mellon\_saml container deployed by these instructions to proxy the SAML communication from your IdP to OpenSHift via the RequestHeader Authentication OpenShift oAuth provider. In the context of the SAML communication the SAML proxy is also the SP even though it is acting as a go between for OpenShift.
+
 ## Manually building the docker images
 The required images are automatically built by the `saml-auth-template.yml` in the [Deploying SAML Proxy](#Deploying SAML Proxy) step so manually building the image is only needed if you want to experiment locally.
 
