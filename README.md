@@ -30,7 +30,7 @@ configuration.
 Manual setups steps to do ahead of time to make the rest of this go a lot smoother.
 
 ### Request your IdP Metadata
-Skip to setp [Get your IdP Provided metadata](#Get your IdP Provided metadata) and request your IdP metadata now so you will have it by the time you need it.
+Skip to setp [Get your IdP Provided metadata](#get-your-idp-provided-metadata) and request your IdP metadata now so you will have it by the time you need it.
 
 ### Log into first master and SUDO to root
 All of this will be done on your first OpenShift master. While doing work directly on an OpenShift master is typically discouraged, you need access to files that live on the first master to complete this procedure, you will also need to be root, or be able to sudo to root, to access the required files.
@@ -50,7 +50,7 @@ ENDPOINT_URL=https://${SAML_PROXY_FQDN}/mellon
 ```
 * `SAML_CONFIG_DIR` - directory to store all of your SAML configuration
 * `UPSTREAM_PROJECTS_DIR` - directory to check out required upstream projects
-* `SAML_PROXY_FQDN` - This will be the FQDN to your SAML proxy (Apache mod_auth_mellon).
+* `SAML_PROXY_FQDN` - This will be the FQDN to your SAML proxy (Apache mod\_auth\_mellon).
                       This will typically be something like `saml-proxy.MY-OCP-WILDCARD-DOMAIN`.
                       If you have `*.apps.non-prod.example.com` as your wildcard domain for your OpenShift cluster then this value would be `saml-proxy.apps.non-prod.example.com`.
                       You could also create a vanity DNS entry and have it route to your OpenShift routers but that isn't needed or typical unless you don't have the a wildcard DNS entry for your OpenShift cluster.
@@ -95,7 +95,7 @@ popd
 ## Get your IdP Provided metadata
 Your IdP administrator must provide you with your IdP metadata XML file. Information they will request from you will include but not necisarrly be limited to:
 
-* Your ENTITY_ID - This is determined in [Set up environment variables](#Set up environment variables)
+* Your `ENTITY_ID` - This is determined in [Set up environment variables](#set-up-environment-variables)
 * Required attributes - The attributes to be provided by the IdP to the SP
   * `user` - Required. The unique user ID for the authenticating user. This should align with the LDAP server you plan to use for authorization, AKA [LDAP group sync](https://docs.openshift.com/container-platform/3.11/install_config/syncing_groups_with_ldap.html).
   * `name` - Optional. Human full name of the user. This is used for display purposes in the UI.
@@ -316,7 +316,7 @@ Helpful terms and their defintions used throughout thid document.
 | SAML Proxy | The Apache mod\_mellon\_saml container deployed by these instructions to proxy the SAML communication from your IdP to OpenSHift via the RequestHeader Authentication OpenShift oAuth provider. In the context of the SAML communication the SAML proxy is also the SP even though it is acting as a go between for OpenShift.
 
 ## Manually building the docker images
-The required images are automatically built by the `saml-auth-template.yml` in the [Deploying SAML Proxy](#Deploying SAML Proxy) step so manually building the image is only needed if you want to experiment locally.
+The required images are automatically built by the `saml-auth-template.yml` in the [Deploying SAML Proxy](#deploying-saml-proxy) step so manually building the image is only needed if you want to experiment locally.
 
 Create the docker image
 ```sh
