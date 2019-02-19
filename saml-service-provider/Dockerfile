@@ -1,12 +1,14 @@
 FROM rhel7
-
 LABEL Vendor="RedHat"
 
 RUN yum repolist --disablerepo=* && \
     yum-config-manager --disable \* > /dev/null && \
     yum-config-manager --enable rhel-7-server-rpms > /dev/null
 
-RUN yum -y install httpd mod_ssl mod_auth_mellon
+RUN yum -y install \
+  httpd \
+  mod_ssl \
+  mod_auth_mellon
 
 ADD openshift.conf /etc/httpd/conf.d/openshift.conf
 ADD httpd.conf /etc/httpd/conf/httpd.conf
@@ -26,4 +28,3 @@ RUN chmod -v a+rwx /var/log/httpd
 RUN chmod -Rv a+rwx /etc/pki/ca-trust/extracted/
 
 CMD ["/run-httpd.sh"]
-

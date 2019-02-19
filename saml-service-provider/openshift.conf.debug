@@ -1,0 +1,107 @@
+LogLevel ${LOG_LEVEL}
+
+# Enable DumpIO
+# NOTE 0: This should only be used for debuging and not in production use
+# NOTE 1: this logs of all input received by Apache and/or all output sent by
+#         Apache to be logged (dumped) to the error.log file.
+# NOTE 2: This log may contain security sensitive information which
+          should not normally be written to a log file
+DumpIOInput  On
+DumpIOOutput On
+
+# Nothing needs to be served over HTTP.  This virtual host simply redirects to
+# HTTPS.
+<VirtualHost *:8080>
+  DocumentRoot /var/www/html
+  RewriteEngine              On
+  RewriteRule     ^(.*)$     https://%{HTTP_HOST}:8443$1 [R,L]
+</VirtualHost>
+
+<VirtualHost *:8443>
+  # Enable Mellon Diagnostics
+  # NOTE 0: This should only be used for debuging and not in production use
+  # NOTE 1: Diagnostic logging adds overhead to the execution of ``mod_auth_mellon``
+  # NOTE 2: In addition the diagnostic log file may contain security sensitive information which
+  #         should not normally be written to a log file.
+  MellonDiagnosticsEnable On
+
+  # This needs to match the certificates you generated.  See the CN and X509v3
+  # Subject Alternative Name in the output of:
+  # openssl x509 -text -in /etc/pki/tls/certs/localhost.crt
+  ServerName ${APPLICATION_DOMAIN}
+
+  SSLEngine on
+  SSLCertificateFile /etc/httpd/conf/server_certs/server.crt
+  SSLCertificateKeyFile /etc/httpd/conf/server_certs/server.key
+
+  SSLProxyEngine on
+  SSLProxyCACertificateFile /etc/httpd/conf/ose_certs/ca.crt
+  # It's critical to enforce client certificates on the Master.  Otherwise
+  # requests could spoof the X-Remote-User header by accessing the Master's
+  # /oauth/authorize endpoint directly.
+  SSLProxyMachineCertificateFile /etc/httpd/conf/ose_certs/authproxy.pem
+
+  # Send all requests to the console
+  RewriteEngine On
+  RewriteCond %{REQUEST_URI} ^/mod_auth_basic/?
+  RewriteCond %{HTTP:X-Csrf-Token} ^$ [NC]		
+  RewriteRule ^.* - [F,L]
+
+  <Location />
+    # Add mod_auth_mellon info to all contexts
+    MellonEnable "info"
+    
+    #MellonSetEnv "name" ${OSE_SAML_ATTRIBUTE_MAPPING}
+    
+    # Auth redirects will be located under /mellon
+    MellonEndpointPath /mellon
+
+    # /etc/httpd/conf/saml is the mount point for the saml volume secret
+    # service provider metadata, cert, and key
+    MellonSPPrivateKeyFile /etc/httpd/conf/saml/saml-sp.key
+    MellonSPCertFile /etc/httpd/conf/saml/saml-sp.cert
+    MellonSPMetadataFile /etc/httpd/conf/saml/saml-sp.xml
+
+    # idp metadata
+    MellonIdPMetadataFile /etc/httpd/conf/saml/sp-idp-metadata.xml
+  </Location>
+
+  <Location ${PROXY_PATH}>
+    # Protect with auth
+    MellonEnable "auth"
+
+    # Proxy to backend once authenticated
+    ProxyPass ${PROXY_DESTINATION}
+
+    <If "-z env('REMOTE_USER_SAML_ATTRIBUTE')">
+       # Set the Remote-User header to the value of the authenticated username
+       RequestHeader set Remote-User %{MELLON_NAME_ID}e env=MELLON_NAME_ID
+    </If>
+    <Else>
+       # Use a custom attribute as the remote username by setting $REMOTE_USER_SAML_ATTRIBUTE to a custom attribute name
+       # Require a value in the attribute we're going to use:
+       MellonCond ${REMOTE_USER_SAML_ATTRIBUTE} .+ [REG]
+       # Map the long attribute name to a nice short one
+       MellonSetEnv user ${REMOTE_USER_SAML_ATTRIBUTE}
+       # Set the Remote-User header to the value of the mapped envvar:
+       RequestHeader set Remote-User %{MELLON_user}e env=MELLON_user
+    </Else>
+
+    <If "-n env('REMOTE_USER_NAME_SAML_ATTRIBUTE')">
+       MellonSetEnv name ${REMOTE_USER_NAME_SAML_ATTRIBUTE}
+       RequestHeader set Remote-User-Name %{MELLON_name}e env=MELLON_name
+    </If>
+
+    <If "-n env('REMOTE_USER_EMAIL_SAML_ATTRIBUTE')">
+       MellonSetEnv email ${REMOTE_USER_EMAIL_SAML_ATTRIBUTE}
+       RequestHeader set Remote-User-Email %{MELLON_email}e env=MELLON_email
+    </If>
+
+    <If "-n env('REMOTE_USER_PREFERRED_USERNAME_SAML_ATTRIBUTE')">
+       MellonSetEnv preferred_username ${REMOTE_USER_PREFERRED_USERNAME_SAML_ATTRIBUTE}
+       RequestHeader set Remote-User-Preferred-Username %{MELLON_preferred_username}e env=MELLON_preferred_username
+    </If>
+  </Location>
+</VirtualHost>
+
+RequestHeader unset Remote-User
