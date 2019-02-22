@@ -1,0 +1,6 @@
+---
+- name: Install RH-SSO on OpenShift
+  hosts: localhost
+  tasks:
+    - name: Install RH-SSO from template
+      command: oc ...

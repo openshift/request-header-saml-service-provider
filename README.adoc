@@ -1,0 +1,22 @@
+
+Steps to run test suite:
+  1. install rh-sso,realm from template
+  2. install httpd from template
+     - create new-project
+     - create mellon certificate and metadata xml
+     - create server certificate
+     - curl idp metadata xml
+  3. install client,test-user on rh-sso
+  4. install oauth on masters
+  5. install redirect on web-console
+
+fix kcadm creds on https
+
+mellon_endpoint_url="{{ mellon_proxy_url }}:{{ mellon_proxy_port }}/mellon"
+mellon_entity_id="${mellon_endpoint_url}/metadata"
+file_prefix="$(echo "$mellon_entity_id" | sed 's/[^A-Za-z.]/_/g' | sed 's/__*/_/g')"
+./mellon_create_metadata.sh $mellon_entity_id $mellon_endpoint_url
+mv ${file_prefix}.cert /etc/httpd/saml2/mellon.crt
+mv ${file_prefix}.key /etc/httpd/saml2/mellon.key
+mv ${file_prefix}.xml /etc/httpd/saml2/mellon-metadata.xml
+curl -k -o /etc/httpd/saml2/idp-metadata.xml {{ idp_saml_metadata_url }}

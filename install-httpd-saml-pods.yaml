@@ -1,0 +1,37 @@
+---
+- name: Install HTTPD SAML proxy on OpenShift
+  hosts: localhost
+  become: no
+  tasks:
+    - name: New Project space
+      command: oc new-project {{ httpd_saml_namespace }}
+    - name: Create apache conf configmap
+      command: oc create cm http-saml-mellon --from-file=openshift.conf -n {{ httpd_saml_namespace }}
+    - name: Create certs
+      shell: |
+        mellon_endpoint_url="{{ mellon_proxy_url }}:{{ mellon_proxy_port }}/mellon"
+        mellon_entity_id="${mellon_endpoint_url}/metadata"
+        file_prefix="$(echo "$mellon_entity_id" | sed 's/[^A-Za-z.]/_/g' | sed 's/__*/_/g')"
+        ./mellon_create_metadata.sh $mellon_entity_id $mellon_endpoint_url
+        mkdir saml2
+        mv ${file_prefix}.cert saml2/mellon.crt
+        mv ${file_prefix}.key saml2/mellon.key
+        mv ${file_prefix}.xml saml2/mellon-metadata.xml
+        curl -k -o saml2/idp-metadata.xml {{ idp_saml_metadata_url }}
+    - name: Create certificate configmaps
+      command: oc create cm saml2 --from-file=saml2 -n {{ httpd_saml_namespace }}
+    - name: Create mellon cert and metadata
+      shell: | 
+        openssl req -x509 -sha256 -nodes -days 365 -newkey rsa:2048 -keyout localhost.key -out localhost.crt -subj "/C=US/ST=State/L=City/O=Company/OU=Org/CN={{ mellon_proxy_cn }}"
+        openssl rsa -in localhost.key -out localhost.key.pk1
+        cat localhost.crt localhost.key.pk1 > localhost.pem
+    - name: Create mellon configmap
+      shell: |
+        oc create cm httpd-certificate --from-file=localhost.crt -n {{ httpd_saml_namespace }}
+        oc create cm httpd-private-key --from-file=localhost.key -n {{ httpd_saml_namespace }}
+        oc create cm httpd-pem --from-file=localhost.pem -n {{ httpd_saml_namespace }}
+    - name: Run template install
+      shell: | 
+        oc process -f httpd-saml-template.yaml | oc create -f- -n {{ httpd_saml_namespace }}
+    - name: Create route
+      command: oc create route reencrypt httpd --service=httpd --dest-ca-cert=localhost.pem --hostname=saml.apps.willow.lab.rdu2.cee.redhat.com

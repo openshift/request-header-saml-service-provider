@@ -36,16 +36,19 @@ fi
 HOST="$(echo "$BASEURL" | sed 's#^[a-z]*://\([^/]*\).*#\1#')"
 BASEURL="$(echo "$BASEURL" | sed 's#/$##')"
 
-OUTFILE="saml_sp"
+OUTFILE="$(echo "$ENTITYID" | sed 's/[^A-Za-z.]/_/g' | sed 's/__*/_/g')"
 echo "Output files:"
-echo "Private key:               $OUTFILE.key"
-echo "Certificate:               $OUTFILE.cert"
-echo "Metadata:                  $OUTFILE.xml"
-echo "Host:                      $HOST"
+echo "Private key:                              $OUTFILE.key"
+echo "Certificate:                              $OUTFILE.cert"
+echo "Metadata:                                 $OUTFILE.xml"
+echo "Host:                                     $HOST"
 echo
 echo "Endpoints:"
-echo "SingleLogoutService:       $BASEURL/logout"
-echo "AssertionConsumerService:  $BASEURL/postResponse"
+echo "SingleLogoutService (SOAP):               $BASEURL/logout"
+echo "SingleLogoutService (HTTP-Redirect):      $BASEURL/logout"
+echo "AssertionConsumerService (HTTP-POST):     $BASEURL/postResponse"
+echo "AssertionConsumerService (HTTP-Artifact): $BASEURL/artifactResponse"
+echo "AssertionConsumerService (PAOS):          $BASEURL/paosResponse"
 echo
 
 # No files should not be readable by the rest of the world.
@@ -72,18 +75,49 @@ rm -f "$TEMPLATEFILE"
 CERT="$(grep -v '^-----' "$OUTFILE.cert")"
 
 cat >"$OUTFILE.xml" <<EOF
-<EntityDescriptor entityID="$ENTITYID" xmlns="urn:oasis:names:tc:SAML:2.0:metadata" xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
-  <SPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
-    <KeyDescriptor use="signing">
-      <ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
-        <ds:X509Data>
-          <ds:X509Certificate>$CERT</ds:X509Certificate>
-        </ds:X509Data>
-      </ds:KeyInfo>
-    </KeyDescriptor>
-    <SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="$BASEURL/logout"/>
-    <AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="$BASEURL/postResponse" index="0"/>
-  </SPSSODescriptor>
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<EntityDescriptor
+ entityID="$ENTITYID"
+ xmlns="urn:oasis:names:tc:SAML:2.0:metadata">
+ <SPSSODescriptor
+   AuthnRequestsSigned="true"
+   WantAssertionsSigned="true"
+   protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+   <KeyDescriptor use="signing">
+     <ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+       <ds:X509Data>
+         <ds:X509Certificate>$CERT</ds:X509Certificate>
+       </ds:X509Data>
+     </ds:KeyInfo>
+   </KeyDescriptor>
+   <KeyDescriptor use="encryption">
+     <ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+       <ds:X509Data>
+         <ds:X509Certificate>$CERT</ds:X509Certificate>
+       </ds:X509Data>
+     </ds:KeyInfo>
+   </KeyDescriptor>
+   <SingleLogoutService
+     Binding="urn:oasis:names:tc:SAML:2.0:bindings:SOAP"
+     Location="$BASEURL/logout" />
+   <SingleLogoutService
+     Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
+     Location="$BASEURL/logout" />
+   <NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:transient</NameIDFormat>
+   <AssertionConsumerService
+     index="0"
+     isDefault="true"
+     Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
+     Location="$BASEURL/postResponse" />
+   <AssertionConsumerService
+     index="1"
+     Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Artifact"
+     Location="$BASEURL/artifactResponse" />
+   <AssertionConsumerService
+     index="2"
+     Binding="urn:oasis:names:tc:SAML:2.0:bindings:PAOS"
+     Location="$BASEURL/paosResponse" />
+ </SPSSODescriptor>
 </EntityDescriptor>
 EOF
 

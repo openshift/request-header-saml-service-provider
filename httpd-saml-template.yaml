@@ -1,0 +1,124 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: httpd-saml-serviceprovider
+objects:
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      app: httpd
+    name: httpd
+  spec:
+    ports:
+    - name: 8443-tcp
+      port: 8443
+      protocol: TCP
+      targetPort: 8443
+    selector:
+      app: httpd
+      deploymentconfig: httpd
+    sessionAffinity: None
+    type: ClusterIP
+- apiVersion: apps.openshift.io/v1
+  kind: DeploymentConfig
+  metadata:
+    labels:
+      app: httpd
+    name: httpd
+  spec:
+    replicas: 3
+    revisionHistoryLimit: 10
+    selector:
+      app: httpd
+      deploymentconfig: httpd
+    strategy:
+      activeDeadlineSeconds: 21600
+      resources: {}
+      rollingParams:
+        intervalSeconds: 1
+        maxSurge: 25%
+        maxUnavailable: 25%
+        timeoutSeconds: 600
+        updatePeriodSeconds: 1
+      type: Rolling
+    template:
+      metadata:
+        labels:
+          app: httpd
+          deploymentconfig: httpd
+      spec:
+        containers:
+        - env:
+          - name: OCP_PUBLIC_URL
+            value: https://openshift.apps.willow.lab.rdu2.cee.redhat.com
+          - name: PROXY_PATH
+            value: /proxy/oauth
+          - name: PROXY_DESTINATION
+            value: https://openshift.apps.willow.lab.rdu2.cee.redhat.com/oauth
+          - name: PROXY_MACHINE_CERTIFICATE
+            value: /etc/pki/tls/private/localhost.pem
+          image: docker-registry.default.svc:5000/openshift/httpd:2.4
+          imagePullPolicy: IfNotPresent
+          name: httpd
+          ports:
+          - containerPort: 8080
+            protocol: TCP
+          - containerPort: 8443
+            protocol: TCP
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /etc/pki/tls/certs/localhost.crt
+            name: httpd-certificate
+            subPath: localhost.crt
+          - mountPath: /etc/pki/tls/private/localhost.key
+            name: httpd-private-key
+            subPath: localhost.key
+          - mountPath: /etc/pki/tls/private/localhost.pem
+            name: httpd-pem
+            subPath: localhost.pem
+          - mountPath: /etc/httpd/conf.d/openshift.conf
+            name: httpd-mellon-config
+            subPath: openshift.conf
+          - mountPath: /etc/httpd/saml2
+            name: saml2
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        volumes:
+        - configMap:
+            defaultMode: 420
+            name: httpd-certificate
+          name: httpd-certificate
+        - configMap:
+            defaultMode: 420
+            name: httpd-private-key
+          name: httpd-private-key
+        - configMap:
+            defaultMode: 420
+            name: httpd-pem
+          name: httpd-pem
+        - configMap:
+            defaultMode: 420
+            name: http-saml-mellon
+          name: httpd-mellon-config
+        - configMap:
+            defaultMode: 420
+            name: saml2
+          name: saml2
+    test: false
+    triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - httpd
+        from:
+          kind: ImageStreamTag
+          name: httpd:2.4
+          namespace: openshift
+      type: ImageChange
