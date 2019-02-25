@@ -5,3 +5,4 @@ saml2
 ansible.cfg
 inventory
 **/params
+*.retry

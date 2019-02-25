@@ -1,6 +1,16 @@
 ---
 - name: Install RH-SSO on OpenShift
   hosts: localhost
+  become: no
   tasks:
-    - name: Install RH-SSO from template
-      command: oc ...
+    - name: Create project namespace
+      command: oc new-project sso
+    - name: Run template install
+      shell: |
+        oc process -f rh-sso/sso72-x509-https.yaml \
+        -p=APPLICATION_NAME={{ idp_app_name }} \
+        -p=HOSTNAME={{ idp_cn }} \
+        -p=SSO_ADMIN_USERNAME={{ idp_admin_user }} \ 
+        -p=SSO_ADMIN_PASSWORD={{ idp_admin_password }} \
+        -p=SSO_REALM={{ ocp_realm }} \
+        | oc create -f- -n {{ sso_namespace }}
