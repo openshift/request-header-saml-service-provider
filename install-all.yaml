@@ -1,0 +1,9 @@
+---
+- name: Full Install Playbook
+- import_playbook: install-rh-sso-pods.yaml
+- import_playbook: install-httpd-saml-pods.yaml
+- import_playbook: install-httpd-saml-client.yaml
+- import_playbook: install-oauth-on-master.yaml
+- import_playbook: update-webconsole-cm.yaml
+
+

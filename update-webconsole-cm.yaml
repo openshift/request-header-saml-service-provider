@@ -1,0 +1,18 @@
+---
+- name: Update logout in webconsole configmap
+  hosts: master-0
+  tasks:
+    - name: Export webconsole configmap
+      shell: oc export cm webconsole-config -n openshift-web-console -o yaml > webconsole-config.yaml 
+    - name: replace logout value in configmap
+      replace:
+        path: webconsole-config.yaml
+        regexp: "logoutPublicURL.*$"
+        replace: "logoutPublicURL: '{{ mellon_proxy_url }}:{{ mellon_proxy_port }}/mellon/logout?ReturnTo={{ mellon_proxy_url}}:{{ mellon_proxy_port}}/redirect'"
+    - name: apply updated configmap
+      shell: oc apply -f webconsole-config.yaml -n openshift-web-console
+    - name: rollout latest webconsole
+      shell: |
+        oc scale deployment webconsole --replicas=0 -n openshift-web-console
+        sleep 5
+        oc scale deployment webconsole --replicas=3 -n openshift-web-console

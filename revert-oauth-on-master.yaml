@@ -1,0 +1,21 @@
+---
+- name: Revert HTPasswd Oauth Config in master-config.yaml
+  hosts: masters
+  tasks:
+    - name: update master-config.yaml - revert auth provider to HTPasswd
+      blockinfile:
+        path: /etc/origin/master/master-config.yaml
+        insertafter: "identityProviders:"
+        block: |2
+            - challenge: true
+              login: true
+              mappingMethod: claim
+              name: htpasswd_auth
+              provider:
+                apiVersion: v1
+                file: /etc/origin/master/htpasswd
+                kind: HTPasswdPasswordIdentityProvider
+    - name: restart master-api
+      service:
+        name: atomic-openshift-master-api
+        state: restarted
