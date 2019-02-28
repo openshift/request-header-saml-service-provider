@@ -62,6 +62,6 @@ mv client-cert.pem saml-sp.cert
 mv client-private-key.pem saml-sp.key
 ```
 
-###Creating a User
+### Creating a User
 Now create a user for authentication in Keycloak.  Make sure to set a password
 in the `Credentials` tab.
