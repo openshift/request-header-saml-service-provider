@@ -96,6 +96,8 @@ popd
 Your IdP administrator must provide you with your IdP metadata XML file. Information they will request from you will include but not necisarrly be limited to:
 
 * Your `ENTITY_ID` - This is determined in [Set up environment variables](#set-up-environment-variables)
+* Single Sign-On Service URL: https://SAML_PROXY_FQDN/mellon/postResponse
+* Single Logout Service URL: https://SAML_PROXY_FQDN/mellon/logout
 * Required attributes - The attributes to be provided by the IdP to the SP
   * `user` - Required. The unique user ID for the authenticating user. This should align with the LDAP server you plan to use for authorization, AKA [LDAP group sync](https://docs.openshift.com/container-platform/3.11/install_config/syncing_groups_with_ldap.html).
   * `name` - Optional. Human full name of the user. This is used for display purposes in the UI.
@@ -138,6 +140,7 @@ __NOTE__: These instructions use the OCP CA to sign the cert. The other option i
 
 
 ```sh
+pushd ${SAML_CONFIG_DIR}
 mkdir ./httpd-server-certs
 
 oc adm ca create-server-cert \
@@ -147,12 +150,15 @@ oc adm ca create-server-cert \
   --hostnames=${SAML_PROXY_FQDN} \
   --cert=./httpd-server-certs/server.crt \
   --key=./httpd-server-certs/server.key
+popd
 ```
 
 ## Create the OpenShift Secrets
 All of the information generated and gathered so far needs to be put into OpenShift Secrets so as they can be mounted into the SAML proxy.
 
 ```sh
+pushd ${SAML_CONFIG_DIR}
+
 oc project ${SAML_OCP_PROJECT}
 oc secrets new httpd-saml-config-secret ./httpd-saml-config
 oc secrets new httpd-ose-certs-secret ./httpd-ose-certs
@@ -160,6 +166,8 @@ oc secrets new httpd-server-certs-secret ./httpd-server-certs
 
 # NOTE: if using your owned signed cert then replace the OpenShift CA path with your CA.
 oc secrets new httpd-server-ca-cert-secret /etc/origin/master/ca.crt
+
+popd
 ```
 
 #### Making changes to secrets
@@ -179,7 +187,7 @@ oc project ${SAML_OCP_PROJECT}
 oc process -f ${SAML_UTILITY_PROJECTS_DIR}/request-header-saml-service-provider/saml-auth-template.yml \
   -p APPLICATION_DOMAIN=${SAML_PROXY_FQDN} \
   -p PROXY_PATH=/oauth/ \
-  -p PROXY_DESTINATION=https://${OPENSHIFT_MASTER_PUBLIC_URL}:8443/oauth/
+  -p PROXY_DESTINATION=https://${OPENSHIFT_MASTER_PUBLIC_URL}/oauth/ \
   | oc create -f -
 ```
 
@@ -188,6 +196,12 @@ The template defines replicas as 0.  This pod can be scaled to multiple replicas
 ```sh
 oc scale --replicas=2 dc saml-auth
 ```
+
+## Test SAML Proxy
+At this point you should be able to download your SP client metadata from the Apache mod_auth_mellon server.
+
+1. In your browser go to: https://${SAML_PROXY_FQDN}/mellon/metadata
+2. verify your `saml-sp.xml` downloads
 
 ## OpenShift master configuration changes
 
