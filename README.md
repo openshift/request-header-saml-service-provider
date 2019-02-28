@@ -19,7 +19,7 @@ The high level communication flow that is created by implimenting this solution 
 
 # Authentication not Authorization
 
-This solution will impliment SAML based authentication for your OpenShift cluster. For authorization the most common solution is [Syncing groups With LDAP](https://docs.openshift.com/container-platform/3.11/install_config/syncing_groups_with_ldap.html) and ensuing the `user` identity provided by your SAML IdP matches the user's identity in your LDAP.
+This solution will implement SAML-based authentication for your OpenShift cluster. For authorization, the most common solution is [Syncing groups With LDAP](https://docs.openshift.com/container-platform/3.11/install_config/syncing_groups_with_ldap.html) and ensuring the `user` identity provided by your SAML IdP matches the user's identity in your LDAP.
 
 # OpenShift Instructions
 The deployment of this pod involves loading a template and using it to create a
@@ -27,10 +27,10 @@ new application.  This running pod will mount in secrets for all custom
 configuration.
 
 ## Setup
-Manual setups steps to do ahead of time to make the rest of this go a lot smoother.
+Manual setup steps to do ahead of time to make the rest of this go a lot smoother.
 
 ### Request your IdP Metadata
-Skip to setp [Get your IdP Provided metadata](#get-your-idp-provided-metadata) and request your IdP metadata now so you will have it by the time you need it.
+Skip to step [Get your IdP Provided metadata](#get-your-idp-provided-metadata) and request your IdP metadata now so you will have it by the time you need it.
 
 ### Log into first master and SUDO to root
 All of this will be done on your first OpenShift master. While doing work directly on an OpenShift master is typically discouraged, you need access to files that live on the first master to complete this procedure, you will also need to be root, or be able to sudo to root, to access the required files.
@@ -107,12 +107,12 @@ An example of this for Keycloak can be seen in [testing_with_keycloak.md](keyclo
 Once recieved this file should be put in `${SAML_CONFIG_DIR}/httpd-saml-config/sp-idp-metadata.xml`
 
 ## Authentication certificate
-Create the necissary certifcates for two way TLS communication between OpenShift oAuth and the SAML Proxy.
+Create the necessary certifcates for two way TLS communication between OpenShift oAuth and the SAML Proxy.
 
 ### Create OCP API Client Certficates
 
 This certifcate is used by the saml service provider pod to make a secure
-request to the Master.  Using all the defaults a suitable file can be created
+request to the Master.  Using all the defaults, a suitable file can be created
 as follows:
 
 ```sh
@@ -134,7 +134,7 @@ cp /etc/origin/master/ca.crt ${SAML_CONFIG_DIR}/httpd-ose-certs/ca.crt
 The saml service provider pod will itself expose a TLS endpoint.  The OpenShift
 Router will use TLS passthrough to allow it to terminate the connection. 
 
-__NOTE__: These instructions use the OCP CA to sign the cert. The other option is to get your own signed certificate. It is recomended you get an organizationally trusted CA to sign this certifcate for production use otherwise users will see their browsers prompting them to accept this certificate when they try to log in via SAML.
+__NOTE__: These instructions use the OCP CA to sign the cert. The other option is to get your own signed certificate. It is recomended you get an organizationally trusted CA to sign this certifcate for production use, otherwise users will see their browsers prompting them to accept this certificate when they try to log in via SAML.
 
 
 ```sh
@@ -150,7 +150,7 @@ oc adm ca create-server-cert \
 ```
 
 ## Create the OpenShift Secrets
-All of the information generated and gathered so far needs to be put into OpenShift Secrets so as they can be mounted into the SAML proxy.
+All of the information generated and gathered so far needs to be put into OpenShift secrets so as they can be mounted into the SAML proxy.
 
 ```sh
 oc project ${SAML_OCP_PROJECT}
@@ -191,7 +191,7 @@ oc scale --replicas=2 dc saml-auth
 
 ## OpenShift master configuration changes
 
-The following changes need to take place on the `/etc/origin/master/master-config.yaml` on all of our masters. You will need to do the string replacments yourself.
+The following changes need to take place on the `/etc/origin/master/master-config.yaml` on all of our masters. You will need to do the string replacements yourself.
 ```yaml
 oauthConfig:
 ...
@@ -232,12 +232,12 @@ Restart the master(s) at this point for the configuration to take effect.
 At this point you can either manually build the image or pull it from another location.
 
 # Debuging
-It is all but 100% guarinteed the OCP Console -> SAML Proxy SP -> Your SAML IdP -> SAML Proxy SP -> OCP oAuth -> OCP console workflow implimented by these instructiosn will not work on the first try, and therefor here are some steps for debugging.
+It is all but 100% guaranteed the OCP Console -> SAML Proxy SP -> Your SAML IdP -> SAML Proxy SP -> OCP oAuth -> OCP console workflow implemented by these instructions will not work on the first try, and therefore here are some steps for debugging.
 
 ## Using the debug image
 This project provides, and automatically builds (assuming you followed these instructions) a helpful debug image. It is very important to note this debug image should only be used during debuging and should not be used when going live in "production".
 
-The debug image enables `mod_auth_mellon-diagnostics` and `mod_dumpio` both of which reduce performance and output security senstive logs you would not normally wont in a production setting.
+The debug image enables `mod_auth_mellon-diagnostics` and `mod_dumpio` both of which reduce performance and output security senstive logs you would not normally want in a production setting.
 
 To use the debug image:
 ```sh
@@ -245,7 +245,7 @@ oc project ${SAML_OCP_PROJECT}
 oc set triggers dc/saml-auth --containers=saml-auth --from-image=saml-service-provider-debug:latest 
 ```
 
-To go back to the production image
+To go back to the production image:
 ```sh
 oc project ${SAML_OCP_PROJECT}
 oc set triggers dc/saml-auth --containers=saml-auth --from-image=saml-service-provider:latest 
@@ -257,7 +257,7 @@ Common issues you will run into while getting this to work.
 ### NameIDFormat
 By default when you [Generate SP SAML Metadata](#generate-sp-saml-metadata) there is no `NameIDFormat` specified. Apache [mod_auth_mellon](https://github.com/Uninett/mod_auth_mellon/blob/master/doc/user_guide/mellon_user_guide.adoc#485-how-do-you-specify-the-nameid-format-in-saml) defaults to a setting of `transient`. If your IdP is expecting a different setting then you could end up with errors, most likely presenting your IdP error logs.
 
-If there is a missmatch, then manually update your `saml-sp.xml` with the correct `NameIDFormat` and [recreate](#making-changes-to-secrets) the `httpd-saml-config-secret` secrete.
+If there is a mismatch, then manually update your `saml-sp.xml` with the correct `NameIDFormat` and [recreate](#making-changes-to-secrets) the `httpd-saml-config-secret` secrete.
 
 For more information on `NameIDFormat` see the mod_auth_mellon doc [4.8.5. How do you specify the NameID format in SAML?](https://github.com/Uninett/mod_auth_mellon/blob/master/doc/user_guide/mellon_user_guide.adoc#485-how-do-you-specify-the-nameid-format-in-saml).
 
@@ -307,7 +307,7 @@ It can not be stressed enough the importance of having your local IdP administra
 
 # Apendex
 ## Terms
-Helpful terms and their defintions used throughout thid document.
+Helpful terms and their defintions used throughout this document.
 
 | Term       | Meaning
 |------------|--------
