@@ -33,7 +33,7 @@ service provider pod in your environment.
 | Single Sign-On Service URL | https://sp.example.org/mellon/postResponse |
 | Single Logout Service URL | https://sp.example.org/mellon/logout | 
 
-###Creating the SAML metadata
+### Creating the SAML metadata
 Now create a new Client in Keycloak matching the name of your service.  On the
 Settings page add the following `Valid Redirect URIs`
 
