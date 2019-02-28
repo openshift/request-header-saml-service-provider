@@ -5,7 +5,7 @@ LogLevel ${LOG_LEVEL}
 # NOTE 1: this logs of all input received by Apache and/or all output sent by
 #         Apache to be logged (dumped) to the error.log file.
 # NOTE 2: This log may contain security sensitive information which
-          should not normally be written to a log file
+#         should not normally be written to a log file
 DumpIOInput  On
 DumpIOOutput On
 
