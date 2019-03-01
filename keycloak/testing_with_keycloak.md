@@ -65,3 +65,11 @@ mv client-private-key.pem saml-sp.key
 ### Creating a User
 Now create a user for authentication in Keycloak.  Make sure to set a password
 in the `Credentials` tab.
+
+### Mapping the data from keycloak to mod_auth_mellon
+Keycloak user attributes need to be manually mapped to SAML attributes. To create these, go to the Client, select the Mappers tab, and configure the following mappers:
+
+| property | SAML Attribute Name | Mapper Type |
+| -------- | ------------------- |:------------|
+| username | user | User Property |
+| email | email | User Property |
