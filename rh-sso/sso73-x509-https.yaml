@@ -1,8 +1,8 @@
 apiVersion: template.openshift.io/v1
 kind: Template
 labels:
-  template: sso72-x509-https
-  xpaas: 1.4.14
+  rhsso: 7.3.0.GA
+  template: sso73-x509-https
 message: A new RH-SSO service has been created in your project. The admin username/password
   for accessing the master realm via the RH-SSO console is ${SSO_ADMIN_USERNAME}/${SSO_ADMIN_PASSWORD}.
   The HTTPS keystore used for serving secure content, the JGroups keystore used for
@@ -11,24 +11,21 @@ message: A new RH-SSO service has been created in your project. The admin userna
   secrets.
 metadata:
   annotations:
-    description: An example RH-SSO 7 application. For more information about using
-      this template, see https://github.com/jboss-openshift/application-templates.
+    description: An example application based on RH-SSO 7.3 image. For more information
+      about using this template, see https://github.com/jboss-container-images/redhat-sso-7-openshift-image/docs.
     iconClass: icon-sso
-    openshift.io/display-name: Red Hat Single Sign-On 7.2 (Ephemeral)
+    openshift.io/display-name: Red Hat Single Sign-On 7.3 (Ephemeral)
     openshift.io/provider-display-name: Red Hat, Inc.
     tags: sso,keycloak,jboss
     template.openshift.io/documentation-url: https://access.redhat.com/documentation/en/red-hat-single-sign-on/
     template.openshift.io/long-description: This template defines resources needed
-      to develop Red Hat Single Sign-On 7.2 server based deployment, securing RH-SSO
+      to develop Red Hat Single Sign-On 7.3 server based deployment, securing RH-SSO
       communication using re-encrypt TLS.
     template.openshift.io/support-url: https://access.redhat.com
-    version: 1.4.14
-  creationTimestamp: 2019-02-21T17:52:48Z
-  name: sso72-x509-https
+    version: 7.3.0.GA
+  creationTimestamp: 2019-02-28T19:05:40Z
+  name: sso73-x509-https
   namespace: openshift
-  resourceVersion: "2778"
-  selfLink: /apis/template.openshift.io/v1/namespaces/openshift/templates/sso72-x509-https
-  uid: 7fea356a-3601-11e9-a73f-fa163e3953ee
 objects:
 - apiVersion: v1
   kind: Service
@@ -98,6 +95,8 @@ objects:
       spec:
         containers:
         - env:
+          - name: SSO_HOSTNAME
+            value: ${SSO_HOSTNAME}
           - name: DB_MIN_POOL_SIZE
             value: ${DB_MIN_POOL_SIZE}
           - name: DB_MAX_POOL_SIZE
@@ -178,7 +177,7 @@ objects:
         - ${APPLICATION_NAME}
         from:
           kind: ImageStreamTag
-          name: redhat-sso72-openshift:1.2
+          name: redhat-sso73-openshift:1.0
           namespace: ${IMAGE_STREAM_NAMESPACE}
       type: ImageChange
     - type: ConfigChange
@@ -188,6 +187,9 @@ parameters:
   name: APPLICATION_NAME
   required: true
   value: sso
+- description: Custom hostname for the RH-SSO server.
+  displayName: Custom RH-SSO Server Hostname
+  name: SSO_HOSTNAME
 - description: The password for the JGroups cluster.
   displayName: JGroups Cluster Password
   from: '[a-zA-Z0-9]{32}'

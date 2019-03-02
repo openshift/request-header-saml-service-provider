@@ -31,7 +31,7 @@
         oc create cm httpd-private-key --from-file=localhost.key -n {{ httpd_saml_namespace }}
         oc create cm httpd-pem --from-file=localhost.pem -n {{ httpd_saml_namespace }}
     - name: Create ServerName configmap
-      command: oc create cm server-name-script --from-file 50-update-ServerName.sh
+      command: oc create cm server-name-script --from-file 50-update-ServerName.sh -n {{ httpd_saml_namespace }}
     - name: Run template install
       shell: | 
         oc process -f httpd-saml-template.yaml \
@@ -42,4 +42,4 @@
           -p=SERVER_NAME={{ mellon_proxy_cn }} \
           | oc create -f- -n {{ httpd_saml_namespace }}
     - name: Create route
-      command: oc create route reencrypt httpd --service=httpd --dest-ca-cert=localhost.pem --hostname={{ mellon_proxy_cn }}
+      command: oc create route reencrypt httpd --service=httpd --dest-ca-cert=localhost.pem --hostname={{ mellon_proxy_cn }} -n {{ httpd_saml_namespace }}
