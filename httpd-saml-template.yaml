@@ -27,7 +27,7 @@ objects:
       app: httpd
     name: httpd
   spec:
-    replicas: 3
+    replicas: 1
     revisionHistoryLimit: 10
     selector:
       app: httpd
@@ -82,7 +82,7 @@ objects:
             name: httpd-pem
             subPath: localhost.pem
           - mountPath: /etc/httpd/conf.d/openshift.conf
-            name: httpd-mellon-config
+            name: httpd-mellon-conf
             subPath: openshift.conf
           - mountPath: /usr/share/container-scripts/httpd/pre-init/50-update-ServerName.sh
             name: server-name-script
@@ -109,8 +109,8 @@ objects:
           name: httpd-pem
         - configMap:
             defaultMode: 420
-            name: http-saml-mellon
-          name: httpd-mellon-config
+            name: httpd-mellon-conf
+          name: httpd-mellon-conf
         - configMap:
             defaultMod: 420
             name: server-name-script

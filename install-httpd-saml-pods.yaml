@@ -6,10 +6,10 @@
     - name: New Project space
       command: oc new-project {{ httpd_saml_namespace }}
     - name: Create apache conf configmap
-      command: oc create cm http-saml-mellon --from-file=openshift.conf -n {{ httpd_saml_namespace }}
+      command: oc create cm httpd-mellon-conf --from-file=openshift.conf -n {{ httpd_saml_namespace }}
     - name: Create certs
       shell: |
-        mellon_endpoint_url="{{ mellon_proxy_url }}:{{ mellon_proxy_port }}/mellon"
+        mellon_endpoint_url="{{ mellon_proxy_url }}/mellon"
         mellon_entity_id="${mellon_endpoint_url}/metadata"
         file_prefix="$(echo "$mellon_entity_id" | sed 's/[^A-Za-z.]/_/g' | sed 's/__*/_/g')"
         ./mellon_create_metadata.sh $mellon_entity_id $mellon_endpoint_url
@@ -36,7 +36,7 @@
       shell: | 
         oc process -f httpd-saml-template.yaml \
           -p=OCP_PUBLIC_URL={{ ocp_url }} \ 
-          -p=PROXY_PATH=/proxy/oauth \
+          -p=PROXY_PATH=/oauth \
           -p=PROXY_DESTINATION={{ ocp_url}}/oauth \
           -p=PROXY_MACHINE_CERTIFICATE=/etc/pki/tls/private/localhost.pem \
           -p=SERVER_NAME={{ mellon_proxy_cn }} \

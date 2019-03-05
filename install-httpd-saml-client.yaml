@@ -17,7 +17,7 @@
     - name: mount configmap volume
       command: oc set volume dc/sso -n {{ sso_namespace }} --add --name=mellon-rh-sso-client --mount-path=/mellon-client --type=configmap --configmap-name=mellon-rh-sso-client --overwrite
     - name: "wait for new pods (TODO: improve)"
-      command: sleep 60
+      command: sleep 120
     - name: excute remote kcadm.sh commands in pods 
       shell: |
         POD_NAME=`oc get pods -n {{ sso_namespace }} | grep -e "sso.*Running" | head -1 | awk '{print $1}'`
@@ -27,3 +27,9 @@
         oc rsh -n {{ sso_namespace }} $POD_NAME /opt/eap/bin/kcadm.sh create clients -r {{ ocp_realm }} -f /mellon-client/mellon-idp-client-with-mappers.json
         oc rsh -n {{ sso_namespace }} $POD_NAME /opt/eap/bin/kcadm.sh create users -r {{ ocp_realm }} -s username={{ realm_test_user }} -s enabled=true -o --fields id,username
         oc rsh -n {{ sso_namespace }} $POD_NAME /opt/eap/bin/kcadm.sh set-password -r {{ ocp_realm }} --username {{ realm_test_user }} --new-password {{ realm_test_user_password }}
+    - name: update configmap with new idp data (restart created new)
+      shell: |
+        curl -k -o saml2/idp-metadata.xml {{ idp_saml_metadata_url }}
+        oc create delete saml2 -n {{ httpd_saml_namespace }} 
+        oc create cm saml2 --from-file=saml2 -n {{ httpd_saml_namespace }}
+        oc rollout latest dc/httpd -n {{ httpd_saml_namespace }}
