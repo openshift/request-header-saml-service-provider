@@ -16,17 +16,27 @@
         path: /etc/origin/master/master-config.yaml
         insertafter: "identityProviders:"
         block: |2
-            - name: requestheader
+            - name: SAML
               challenge: false
               login: true
+              mappingMethod: add
               provider:
                 apiVersion: v1
                 kind: RequestHeaderIdentityProvider
-                challengeURL: "{{ mellon_proxy_url }}:{{ mellon_proxy_port }}/proxy/oauth/authorize?${query}"
-                loginURL: "{{ mellon_proxy_url }}:{{ mellon_proxy_port }}/proxy/oauth/authorize?${query}"
+                loginURL: "{{ mellon_proxy_url }}/oauth/authorize?${query}"
                 clientCA: /etc/origin/master/httpd-saml.pem
                 headers:
                 - X-Remote-User
+                - Remote-User
+                emailHeaders:
+                - X-Remote-User-Email
+                - Remote-User-Email
+                nameHeaders:
+                - X-Remote-User-Display-Name
+                - Remote-User-Display-Name
+                preferredUsernameHeaders:
+                - X-Remote-User-Preferred-Username
+                - Remote-User-Preferred-Username
     - name: restart master-api
       service:
         name: atomic-openshift-master-api
