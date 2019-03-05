@@ -291,6 +291,13 @@ If there is an issue with attributes being matched correctly you could end up se
 ### clientCA not the CA that signed your SAML Proxy client certificates
 if the `clientCA` value set in the [OpenShift master configuration changes](#openshift-master-configuration-changes) step is not the CA that signed the [Create SAML Proxy Client Certificates](#create-saml-proxy-client-certificates) then you could see an infinite redirect between OpenShift oAuth and SAML Proxy or other certificate errors in the browser or various logs.
 
+### User Attributes Missing or Incorrect
+Symptoms:
+Logging into Openshift with the SAML provider will have a 403 Forbidden Error.
+On the saml-auth pod (only the debug version) running on Openshift, you will see this line in `/var/log/httpd/mellon_diagnostics`
+`am_check_permissions processing condition 0 of 1: varname="user" flags=[REG] str=".+" directive="MellonCond user .+ [REG]" failed (no OR condition) returning HTTP_FORBIDDEN`
+This error is an indication that your SAML mappings coming from your IdP are not mapping correctly. The SAML property needs to be mapped as "user". See [testing_with_keycloak.md](keycloak/testing_with_keycloak.md#mapping-the-data-from-keycloak-to-mod_auth_mellon)
+
 ## Reducing Debug Footprint
 While debuging it is helpful if you reduce the places you need to look for logs. It is then suggested that you:
 
@@ -318,6 +325,7 @@ It helps if first you follow [Reducing Debug Footprint](#reducing-debug-footprin
   
 ### IdP
 It can not be stressed enough the importance of having your local IdP administrator be involved with your debuging efforts. The speed at which you can resolve issues is expontential if you can have them monitoring the IdP logs at the same time you are doing your initial testing and reporting back what errors they see, and or, even better, screen sharing those logs with you.
+
 
 # Apendex
 ## Terms
