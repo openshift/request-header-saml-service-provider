@@ -35,9 +35,9 @@
     - name: Run template install
       shell: | 
         oc process -f httpd-saml-template.yaml \
-          -p=OCP_PUBLIC_URL={{ idp_url }} \ 
+          -p=OCP_PUBLIC_URL={{ ocp_url }} \ 
           -p=PROXY_PATH=/proxy/oauth \
-          -p=PROXY_DESTINATION={{ idp_url}}/oauth \
+          -p=PROXY_DESTINATION={{ ocp_url}}/oauth \
           -p=PROXY_MACHINE_CERTIFICATE=/etc/pki/tls/private/localhost.pem \
           -p=SERVER_NAME={{ mellon_proxy_cn }} \
           | oc create -f- -n {{ httpd_saml_namespace }}
