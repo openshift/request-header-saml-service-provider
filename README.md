@@ -296,7 +296,7 @@ Symptoms:
 Logging into Openshift with the SAML provider will have a 403 Forbidden Error.
 On the saml-auth pod (only the debug version) running on Openshift, you will see this line in `/var/log/httpd/mellon_diagnostics`
 `am_check_permissions processing condition 0 of 1: varname="user" flags=[REG] str=".+" directive="MellonCond user .+ [REG]" failed (no OR condition) returning HTTP_FORBIDDEN`
-This error is an indication that your SAML mappings coming from your IdP are not mapping correctly. The SAML property needs to be mapped as "user", whereas some identity providers, like keycloak, send this property as "username". See [testing_with_keycloak.md](keycloak/testing_with_keycloak.md#mapping-the-data-from-keycloak-to-mod_auth_mellon)
+This error is an indication that your SAML mappings coming from your IdP are not mapping correctly. The SAML property needs to be mapped as "user". See [testing_with_keycloak.md](keycloak/testing_with_keycloak.md#mapping-the-data-from-keycloak-to-mod_auth_mellon)
 
 ## Reducing Debug Footprint
 While debuging it is helpful if you reduce the places you need to look for logs. It is then suggested that you:
