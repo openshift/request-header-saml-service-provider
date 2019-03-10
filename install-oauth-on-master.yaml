@@ -19,7 +19,6 @@
             - name: SAML
               challenge: false
               login: true
-              mappingMethod: add
               provider:
                 apiVersion: v1
                 kind: RequestHeaderIdentityProvider
@@ -32,8 +31,8 @@
                 - X-Remote-User-Email
                 - Remote-User-Email
                 nameHeaders:
-                - X-Remote-User-Display-Name
-                - Remote-User-Display-Name
+                - X-Remote-User-Name
+                - Remote-User-Name
                 preferredUsernameHeaders:
                 - X-Remote-User-Preferred-Username
                 - Remote-User-Preferred-Username

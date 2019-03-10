@@ -40,6 +40,10 @@
           -p=PROXY_DESTINATION={{ ocp_url}}/oauth \
           -p=PROXY_MACHINE_CERTIFICATE=/etc/pki/tls/private/localhost.pem \
           -p=SERVER_NAME={{ mellon_proxy_cn }} \
+          -p=REMOTE_USER_SAML_ATTRIBUTE={{ remote_user_saml_attribute }} \
+          -p=REMOTE_USER_NAME_SAML_ATTRIBUTE={{ remote_user_name_saml_attribute }} \
+          -p=REMOTE_USER_EMAIL_SAML_ATTRIBUTE={{ remote_user_email_saml_attribute }} \
+          -p=REMOTE_USER_PREFERRED_USERNAME_SAML_ATTRIBUTE={{ remote_user_preferred_username }} \
           | oc create -f- -n {{ httpd_saml_namespace }}
     - name: Create route
       command: oc create route reencrypt httpd --service=httpd --dest-ca-cert=localhost.pem --hostname={{ mellon_proxy_cn }} -n {{ httpd_saml_namespace }}

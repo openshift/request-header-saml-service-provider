@@ -60,6 +60,14 @@ objects:
             value: ${PROXY_MACHINE_CERTIFICATE}
           - name: SERVER_NAME
             value: ${SERVER_NAME}
+          - name: REMOTE_USER_SAML_ATTRIBUTE
+            value: "${REMOTE_USER_SAML_ATTRIBUTE}"
+          - name: REMOTE_USER_NAME_SAML_ATTRIBUTE
+            value: "${REMOTE_USER_NAME_SAML_ATTRIBUTE}"
+          - name: REMOTE_USER_EMAIL_SAML_ATTRIBUTE
+            value: "${REMOTE_USER_EMAIL_SAML_ATTRIBUTE}"
+          - name: REMOTE_USER_PREFERRED_USERNAME_SAML_ATTRIBUTE
+            value: "${REMOTE_USER_PREFERRED_USERNAME_SAML_ATTRIBUTE}"
           image: docker-registry.default.svc:5000/openshift/httpd:2.4
           imagePullPolicy: IfNotPresent
           name: httpd
@@ -87,6 +95,9 @@ objects:
           - mountPath: /usr/share/container-scripts/httpd/pre-init/50-update-ServerName.sh
             name: server-name-script
             subPath: 50-update-ServerName.sh
+          - mountPath: /etc/httpd/conf.modules.d/11-auth_mellon-debug.conf
+            name: debug
+            subPath: 11-auth_mellon-debug.conf
           - mountPath: /etc/httpd/saml2
             name: saml2
         dnsPolicy: ClusterFirst
@@ -115,6 +126,10 @@ objects:
             defaultMod: 420
             name: server-name-script
           name: server-name-script
+        - configMap:
+            defaultMod: 420
+            name: debug
+          name: debug
         - configMap:
             defaultMode: 420
             name: saml2
@@ -151,4 +166,16 @@ parameters:
 - description: "Server Name (cn)"
   displayName: "Server Name (cn)"
   name: SERVER_NAME
+  required: true
+- name: REMOTE_USER_SAML_ATTRIBUTE
+  description: IdP SAML attribute for the user identity.
+  required: true
+- name: REMOTE_USER_NAME_SAML_ATTRIBUTE
+  description: IdP SAML attribute for a display name.
+  required: true
+- name: REMOTE_USER_EMAIL_SAML_ATTRIBUTE
+  description: IdP SAML attribute for an email address.
+  required: true
+- name: REMOTE_USER_PREFERRED_USERNAME_SAML_ATTRIBUTE
+  description: IdP SAML attribute for a preferred user name, if different than the immutable identity determined from the headers specified in headers.
   required: true
