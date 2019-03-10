@@ -12,7 +12,7 @@
         mellon_endpoint_url="{{ mellon_proxy_url }}/mellon"
         mellon_entity_id="${mellon_endpoint_url}/metadata"
         file_prefix="$(echo "$mellon_entity_id" | sed 's/[^A-Za-z.]/_/g' | sed 's/__*/_/g')"
-        ./mellon_create_metadata.sh $mellon_entity_id $mellon_endpoint_url
+        ../saml-service-provider/mellon_create_metadata.sh $mellon_entity_id $mellon_endpoint_url
         mkdir saml2
         mv ${file_prefix}.cert saml2/mellon.crt
         mv ${file_prefix}.key saml2/mellon.key
@@ -34,7 +34,7 @@
       command: oc create cm server-name-script --from-file 50-update-ServerName.sh -n {{ httpd_saml_namespace }}
     - name: Run template install
       shell: | 
-        oc process -f httpd-saml-template.yaml \
+        oc process -f ../httpd-saml-template.yaml \
           -p=OCP_PUBLIC_URL={{ ocp_url }} \ 
           -p=PROXY_PATH=/oauth \
           -p=PROXY_DESTINATION={{ ocp_url}}/oauth \

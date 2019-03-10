@@ -7,7 +7,7 @@
       command: oc new-project sso
     - name: Run template install
       shell: |
-        oc process -f rh-sso/sso73-x509-https.yaml \
+        oc process -f ../rh-sso/sso73-x509-https.yaml \
         -p=APPLICATION_NAME={{ idp_app_name }} \
         -p=HOSTNAME={{ idp_cn }} \
         -p=SSO_HOSTNAME={{ idp_cn }} \
