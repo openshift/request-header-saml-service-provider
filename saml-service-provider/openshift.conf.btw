@@ -25,7 +25,7 @@ SSLProxyMachineCertificateFile ${PROXY_MACHINE_CERTIFICATE}
 
 # mod_auth_mellon only accepts its own hostname in the RedirectTo field
 # so we redirect the user here, then back to OpenShift Public URL
-Redirect /redirect ${OCP_PUBLIC_URL}
+Redirect /login-ocp ${OCP_PUBLIC_URL}
 
 # Send all requests to the console
 RewriteEngine On
