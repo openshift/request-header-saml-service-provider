@@ -1,0 +1,226 @@
+---
+kind: Template
+apiVersion: v1
+metadata:
+  name: saml-auth
+  annotations:
+    iconClass: icon-shadowman
+    tags: instant-app,saml,authentication
+labels:
+  template: saml-auth
+objects:
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: saml-auth
+  spec:
+    ports:
+    - name: web
+      port: 443
+      targetPort: 8443
+    selector:
+      name: saml-auth
+- apiVersion: v1
+  kind: Route
+  metadata:
+    name: saml-auth
+  spec:
+    host: "${APPLICATION_DOMAIN}"
+    to:
+      kind: Service
+      name: saml-auth
+    tls:
+      termination: passthrough
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    name: saml-auth
+  spec:
+    replicas: 0
+    selector:
+      name: saml-auth
+    strategy:
+      type: Recreate
+    template:
+      metadata:
+        labels:
+          name: saml-auth
+        name: saml-auth
+      spec:
+        containers:
+        - env:
+          - name: APPLICATION_DOMAIN
+            value: "${APPLICATION_DOMAIN}"
+          - name: PROXY_PATH
+            value: "${PROXY_PATH}"
+          - name: PROXY_DESTINATION
+            value: "${PROXY_DESTINATION}"
+          - name: LOG_LEVEL
+            value: "${LOG_LEVEL}"
+          - name: REMOTE_USER_SAML_ATTRIBUTE
+            value: "${REMOTE_USER_SAML_ATTRIBUTE}"
+          - name: REMOTE_USER_NAME_SAML_ATTRIBUTE
+            value: "${REMOTE_USER_NAME_SAML_ATTRIBUTE}"
+          - name: REMOTE_USER_EMAIL_SAML_ATTRIBUTE
+            value: "${REMOTE_USER_EMAIL_SAML_ATTRIBUTE}"
+          - name: REMOTE_USER_PREFERRED_USERNAME_SAML_ATTRIBUTE
+            value: "${REMOTE_USER_PREFERRED_USERNAME_SAML_ATTRIBUTE}"
+          image: openshift3/saml-service-provider
+          name: saml-auth
+          ports:
+          - containerPort: 8443
+          readinessProbe:
+            exec:
+              command:
+              - "/usr/bin/curl"
+              - "-k"
+              - https://127.0.0.1:8443/logged_out.html
+            initialDelaySeconds: 10
+            timeoutSeconds: 1
+          volumeMounts:
+          - mountPath: /etc/httpd/conf/saml
+            name: httpd-saml-config
+          - mountPath: /etc/httpd/conf/ose_certs
+            name: httpd-ose-certs
+          - mountPath: /etc/httpd/conf/server_certs
+            name: httpd-server-certs
+          - mountPath: /etc/pki/ca-trust/source/anchors/ca-cert.crt
+            name: httpd-server-ca-cert
+        volumes:
+        - name: httpd-saml-config
+          secret:
+            defaultMode: 420
+            secretName: httpd-saml-config-secret
+        - name: httpd-ose-certs
+          secret:
+            defaultMode: 420
+            secretName: httpd-ose-certs-secret
+        - name: httpd-server-certs
+          secret:
+            defaultMode: 420
+            secretName: httpd-server-certs-secret
+        - name: httpd-server-ca-cert
+          secret:
+            defaultMode: 420
+            secretName: httpd-server-ca-cert-secret
+    triggers:
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - saml-auth
+        from:
+          kind: ImageStreamTag
+          name: saml-service-provider:latest
+      type: ImageChange
+    - type: ConfigChange
+- apiVersion: image.openshift.io/v1
+  kind: ImageStream
+  metadata:
+    labels:
+      app: saml-service-provider
+    name: saml-service-provider
+  spec:
+    lookupPolicy:
+      local: false
+- apiVersion: image.openshift.io/v1
+  kind: ImageStream
+  metadata:
+    labels:
+      app: saml-service-provider-debug
+    name: saml-service-provider-debug
+  spec:
+    lookupPolicy:
+      local: false
+- apiVersion: build.openshift.io/v1
+  kind: BuildConfig
+  metadata:
+    labels:
+      build: saml-service-provider
+    name: saml-service-provider
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: saml-service-provider:latest
+    postCommit: {}
+    resources: {}
+    runPolicy: Serial
+    source:
+      contextDir: /saml-service-provider
+      git:
+        uri: "${SAML_SERVICE_PROVIDER_IMAGE_URI}"
+        ref: "${SAML_SERVICE_PROVIDER_IMAGE_REF}"
+      type: Git
+    strategy:
+      dockerStrategy:
+        dockerfilePath: Dockerfile
+      type: Docker
+    triggers:
+    - type: ConfigChange
+    successfulBuildsHistoryLimit: 5
+    failedBuildsHistoryLimit: 5
+- apiVersion: build.openshift.io/v1
+  kind: BuildConfig
+  metadata:
+    labels:
+      build: saml-service-provider-debug
+    name: saml-service-provider-debug
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: saml-service-provider-debug:latest
+    postCommit: {}
+    resources: {}
+    runPolicy: Serial
+    source:
+      contextDir: /saml-service-provider
+      git:
+        uri: "${SAML_SERVICE_PROVIDER_IMAGE_URI}"
+        ref: "${SAML_SERVICE_PROVIDER_IMAGE_REF}"
+      type: Git
+    strategy:
+      dockerStrategy:
+        dockerfilePath: Dockerfile.debug
+        from:
+          kind: ImageStreamTag
+          name: 'saml-service-provider:latest'
+      type: Docker
+    triggers:
+    - type: ImageChange
+      imageChange: {}
+    successfulBuildsHistoryLimit: 5
+    failedBuildsHistoryLimit: 5
+parameters:
+- name: APPLICATION_DOMAIN
+  description: The exposed hostname that will route to the SAML service, if left blank
+    a value will be defaulted.
+- name: PROXY_PATH
+  description: The root path that will proxy to the OpenShift Enterprise OAuth server,
+    with a trailing slash (e.g. /oauth/)
+  required: true
+- name: PROXY_DESTINATION
+  description: The full URL, including port and path, with a trailing slash, that
+    the PROXY_PATH should proxy (e.g. https://api.example.com:8443/oauth/)
+  required: true
+- name: LOG_LEVEL
+  description: Logging level for mod_auth_mellon
+  value: info
+- name: REMOTE_USER_SAML_ATTRIBUTE
+  description: IdP SAML attribute for the user identity.
+  value: user
+- name: REMOTE_USER_NAME_SAML_ATTRIBUTE
+  description: IdP SAML attribute for a display name.
+  value: name
+- name: REMOTE_USER_EMAIL_SAML_ATTRIBUTE
+  description: IdP SAML attribute for an email address.
+  value: email
+- name: REMOTE_USER_PREFERRED_USERNAME_SAML_ATTRIBUTE
+  description: IdP SAML attribute for a preferred user name, if different than the immutable identity determined from the headers specified in headers.
+  value: preferred_username
+- name: SAML_SERVICE_PROVIDER_IMAGE_URI
+  description: URI to the git project contianing the saml-service-provider image definintion
+  value: https://github.com/openshift/request-header-saml-service-provider.git
+- name: SAML_SERVICE_PROVIDER_IMAGE_REF
+  description: Git ref contianing the saml-service-provider image definintion
+  value: master
