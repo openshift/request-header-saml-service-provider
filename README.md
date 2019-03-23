@@ -93,7 +93,7 @@ popd
 ```
 
 ## Get your IdP Provided metadata
-Your IdP administrator must provide you with your IdP metadata XML file. Information they will request from you will include but not necisarrly be limited to:
+Your IdP administrator must provide you with your IdP metadata XML file. Information they will request from you will include but not necessarily be limited to:
 
 * Your `ENTITY_ID` - This is determined in [Set up environment variables](#set-up-environment-variables)
 * Single Sign-On Service URL: https://SAML_PROXY_FQDN/mellon/postResponse
@@ -275,13 +275,15 @@ If there is a mismatch, then manually update your `saml-sp.xml` with the correct
 
 For more information on `NameIDFormat` see the mod_auth_mellon doc [4.8.5. How do you specify the NameID format in SAML?](https://github.com/Uninett/mod_auth_mellon/blob/master/doc/user_guide/mellon_user_guide.adoc#485-how-do-you-specify-the-nameid-format-in-saml).
 
-### IdP Attribute names missmatch
-In theory the `REMOTE_USER_SAML_ATTRIBUTE`, `REMOTE_USER_NAME_SAML_ATTRIBUTE`, `REMOTE_USER_EMAIL_SAML_ATTRIBUTE`, and `REMOTE_USER_PREFERRED_USERNAME_SAML_ATTRIBUTE` should allow you to arbitrarly set what the IdP attribute names are for those fields and map them accordingly to the RequestHeaders, in practice, this doesn't seem to work and can cause confusion. It is recomended (possibly required) that the IdP attributes returned exactly match:
+### IdP Attribute Mapping
+The variables `REMOTE_USER_SAML_ATTRIBUTE`, `REMOTE_USER_NAME_SAML_ATTRIBUTE`, `REMOTE_USER_EMAIL_SAML_ATTRIBUTE`, and `REMOTE_USER_PREFERRED_USERNAME_SAML_ATTRIBUTE` should allow you to arbitrarly set what the IdP attribute names are for those fields and map them accordingly to the RequestHeaders.
 
-* `user` - Required. The unique user ID for the authenticating user. This should align with the LDAP server you plan to use for authorization, AKA LDAP group sync.
-* `name` - Optional. Human full name of the user. This is used for display purposes in the UI.
-* `email` - Optional. E-mail address of the user.
-* `preferred_username` - Optional. Preferred user name, if different than the immutable identity determined from the headers specified in headers.
+These are the defaults for this project:
+
+* `REMOTE_USER_SAML_ATTRIBUTE=user` - Required. The unique user ID for the authenticating user. This should align with the LDAP server you plan to use for authorization, AKA LDAP group sync.
+* `REMOTE_USER_NAME_SAML_ATTRIBUTE=name` - Optional. Human full name of the user. This is used for display purposes in the UI.
+* `REMOTE_USER_EMAIL_SAML_ATTRIBUTE=email` - Optional. E-mail address of the user.
+* `REMOTE_USER_PREFERRED_USERNAME_SAML_ATTRIBUTE=preferred_username` - Optional. Preferred user name, if different than the immutable identity determined from the headers specified in headers.
 
 If there is an issue with attributes being matched correctly you could end up seeing:
 
@@ -289,7 +291,7 @@ If there is an issue with attributes being matched correctly you could end up se
 * SAML Proxy debug container `/var/log/httpd/error_log` will show that the ResponseHeaders are not being set correctly even though the `/var/log/httpd/mellon_diagnostics` show your attributes coming back from the IdP
 
 ### clientCA not the CA that signed your SAML Proxy client certificates
-if the `clientCA` value set in the [OpenShift master configuration changes](#openshift-master-configuration-changes) step is not the CA that signed the [Create SAML Proxy Client Certificates](#create-saml-proxy-client-certificates) then you could see an infinite redirect between OpenShift oAuth and SAML Proxy or other certificate errors in the browser or various logs.
+If the `clientCA` value set in the [OpenShift master configuration changes](#openshift-master-configuration-changes) step is not the CA that signed the [Create SAML Proxy Client Certificates](#create-saml-proxy-client-certificates) then you could see an infinite redirect between OpenShift oAuth and SAML Proxy or other certificate errors in the browser or various logs.
 
 ### User Attributes Missing or Incorrect
 Symptoms:
