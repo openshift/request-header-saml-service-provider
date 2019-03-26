@@ -1,6 +1,6 @@
 ---
 kind: Template
-apiVersion: v1
+apiVersion: template.openshift.io/v1
 metadata:
   name: saml-auth
   annotations:
@@ -15,23 +15,15 @@ objects:
     name: saml-auth
   spec:
     ports:
-    - name: web
-      port: 443
+    - name: 8443-tcp
+      port: 8443
+      protocol: TCP
       targetPort: 8443
     selector:
       name: saml-auth
-- apiVersion: v1
-  kind: Route
-  metadata:
-    name: saml-auth
-  spec:
-    host: "${APPLICATION_DOMAIN}"
-    to:
-      kind: Service
-      name: saml-auth
-    tls:
-      termination: passthrough
-- apiVersion: v1
+    sessionAffinity: None
+    type: ClusterIP
+- apiVersion: apps.openshift.io/v1
   kind: DeploymentConfig
   metadata:
     name: saml-auth
@@ -40,7 +32,15 @@ objects:
     selector:
       name: saml-auth
     strategy:
-      type: Recreate
+      activeDeadlineSeconds: 21600
+      resources: {}
+      rollingParams:
+        intervalSeconds: 1
+        maxSurge: 25%
+        maxUnavailable: 25%
+        timeoutSeconds: 600
+        updatePeriodSeconds: 1
+      type: Rolling
     template:
       metadata:
         labels:
@@ -49,6 +49,8 @@ objects:
       spec:
         containers:
         - env:
+          - name: OPENSHIFT_MASTER_PUBLIC_URL
+            value: "${OPENSHIFT_MASTER_PUBLIC_URL}"
           - name: APPLICATION_DOMAIN
             value: "${APPLICATION_DOMAIN}"
           - name: PROXY_PATH
@@ -65,10 +67,15 @@ objects:
             value: "${REMOTE_USER_EMAIL_SAML_ATTRIBUTE}"
           - name: REMOTE_USER_PREFERRED_USERNAME_SAML_ATTRIBUTE
             value: "${REMOTE_USER_PREFERRED_USERNAME_SAML_ATTRIBUTE}"
-          image: openshift3/saml-service-provider
+          image: docker-registry.default.svc:5000/openshift/httpd:2.4
+          imagePullPolicy: IfNotPresent
           name: saml-auth
           ports:
           - containerPort: 8443
+            protocol: TCP
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
           readinessProbe:
             exec:
               command:
@@ -78,19 +85,32 @@ objects:
             initialDelaySeconds: 10
             timeoutSeconds: 1
           volumeMounts:
-          - mountPath: /etc/httpd/conf/saml
-            name: httpd-saml-config
+          - mountPath: /etc/httpd/saml2
+            name: httpd-saml2-config
           - mountPath: /etc/httpd/conf/ose_certs
             name: httpd-ose-certs
-          - mountPath: /etc/httpd/conf/server_certs
-            name: httpd-server-certs
-          - mountPath: /etc/pki/ca-trust/source/anchors/ca-cert.crt
+          - mountPath: /opt/app-root/httpd-ssl/certs
+            name: httpd-server-cert
+          - mountPath: /opt/app-root/httpd-ssl/private
+            name: httpd-server-key
+          - mountPath: /opt/app-root/httpd-ssl/certs/ca
             name: httpd-server-ca-cert
+          - mountPath: /etc/httpd/conf.d/openshift.conf
+            name: httpd-mellon-conf
+          - mountPath: /usr/share/container-scripts/httpd/pre-init/50-update-ServerName.sh
+            name: server-name-script
+          - mountPath: /etc/httpd/conf.modules.d/11-auth_mellon-debug.conf
+            name: debug
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
         volumes:
-        - name: httpd-saml-config
+        - name: httpd-saml2-config
           secret:
             defaultMode: 420
-            secretName: httpd-saml-config-secret
+            secretName: httpd-saml2-config-secret
         - name: httpd-ose-certs
           secret:
             defaultMode: 420
@@ -98,11 +118,27 @@ objects:
         - name: httpd-server-certs
           secret:
             defaultMode: 420
-            secretName: httpd-server-certs-secret
+            secretName: httpd-server-cert-secret
+        - name: httpd-server-certs
+          secret:
+            defaultMode: 420
+            secretName: httpd-server-key-secret
         - name: httpd-server-ca-cert
           secret:
             defaultMode: 420
             secretName: httpd-server-ca-cert-secret
+        - configMap:
+            defaultMode: 420
+            name: httpd-mellon-conf
+          name: httpd-mellon-conf
+        - configMap:
+            defaultMod: 420
+            name: server-name-script
+          name: server-name-script
+        - configMap:
+            defaultMod: 420
+            name: debug
+          name: debug
     triggers:
     - imageChangeParams:
         automatic: true
@@ -110,7 +146,8 @@ objects:
         - saml-auth
         from:
           kind: ImageStreamTag
-          name: saml-service-provider:latest
+          name: httpd:2.4
+          namespace: openshift
       type: ImageChange
     - type: ConfigChange
 - apiVersion: image.openshift.io/v1
@@ -122,76 +159,9 @@ objects:
   spec:
     lookupPolicy:
       local: false
-- apiVersion: image.openshift.io/v1
-  kind: ImageStream
-  metadata:
-    labels:
-      app: saml-service-provider-debug
-    name: saml-service-provider-debug
-  spec:
-    lookupPolicy:
-      local: false
-- apiVersion: build.openshift.io/v1
-  kind: BuildConfig
-  metadata:
-    labels:
-      build: saml-service-provider
-    name: saml-service-provider
-  spec:
-    output:
-      to:
-        kind: ImageStreamTag
-        name: saml-service-provider:latest
-    postCommit: {}
-    resources: {}
-    runPolicy: Serial
-    source:
-      contextDir: /saml-service-provider
-      git:
-        uri: "${SAML_SERVICE_PROVIDER_IMAGE_URI}"
-        ref: "${SAML_SERVICE_PROVIDER_IMAGE_REF}"
-      type: Git
-    strategy:
-      dockerStrategy:
-        dockerfilePath: Dockerfile
-      type: Docker
-    triggers:
-    - type: ConfigChange
-    successfulBuildsHistoryLimit: 5
-    failedBuildsHistoryLimit: 5
-- apiVersion: build.openshift.io/v1
-  kind: BuildConfig
-  metadata:
-    labels:
-      build: saml-service-provider-debug
-    name: saml-service-provider-debug
-  spec:
-    output:
-      to:
-        kind: ImageStreamTag
-        name: saml-service-provider-debug:latest
-    postCommit: {}
-    resources: {}
-    runPolicy: Serial
-    source:
-      contextDir: /saml-service-provider
-      git:
-        uri: "${SAML_SERVICE_PROVIDER_IMAGE_URI}"
-        ref: "${SAML_SERVICE_PROVIDER_IMAGE_REF}"
-      type: Git
-    strategy:
-      dockerStrategy:
-        dockerfilePath: Dockerfile.debug
-        from:
-          kind: ImageStreamTag
-          name: 'saml-service-provider:latest'
-      type: Docker
-    triggers:
-    - type: ImageChange
-      imageChange: {}
-    successfulBuildsHistoryLimit: 5
-    failedBuildsHistoryLimit: 5
 parameters:
+- name: OPENSHIFT_MASTER_PUBLIC_URL
+  description: OpenShift Master Public URL
 - name: APPLICATION_DOMAIN
   description: The exposed hostname that will route to the SAML service, if left blank
     a value will be defaulted.
@@ -203,24 +173,22 @@ parameters:
   description: The full URL, including port and path, with a trailing slash, that
     the PROXY_PATH should proxy (e.g. https://api.example.com:8443/oauth/)
   required: true
+- name: PROXY_MACHINE_CERTIFICATE
+  description: "Proxy Machine Certificate location"
+  displayName: "Proxy Machine Certificate location"
+  required: true
 - name: LOG_LEVEL
   description: Logging level for mod_auth_mellon
   value: info
 - name: REMOTE_USER_SAML_ATTRIBUTE
   description: IdP SAML attribute for the user identity.
-  value: user
+  required: true
 - name: REMOTE_USER_NAME_SAML_ATTRIBUTE
   description: IdP SAML attribute for a display name.
-  value: name
+  required: true
 - name: REMOTE_USER_EMAIL_SAML_ATTRIBUTE
   description: IdP SAML attribute for an email address.
-  value: email
+  required: true
 - name: REMOTE_USER_PREFERRED_USERNAME_SAML_ATTRIBUTE
   description: IdP SAML attribute for a preferred user name, if different than the immutable identity determined from the headers specified in headers.
-  value: preferred_username
-- name: SAML_SERVICE_PROVIDER_IMAGE_URI
-  description: URI to the git project contianing the saml-service-provider image definintion
-  value: https://github.com/openshift/request-header-saml-service-provider.git
-- name: SAML_SERVICE_PROVIDER_IMAGE_REF
-  description: Git ref contianing the saml-service-provider image definintion
-  value: master
+  required: true
