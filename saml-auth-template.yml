@@ -173,10 +173,6 @@ parameters:
   description: The full URL, including port and path, with a trailing slash, that
     the PROXY_PATH should proxy (e.g. https://api.example.com:8443/oauth/)
   required: true
-- name: PROXY_MACHINE_CERTIFICATE
-  description: "Proxy Machine Certificate location"
-  displayName: "Proxy Machine Certificate location"
-  required: true
 - name: LOG_LEVEL
   description: Logging level for mod_auth_mellon
   value: info
