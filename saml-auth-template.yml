@@ -102,6 +102,7 @@ objects:
             name: httpd-mellon-conf
           - mountPath: /usr/share/container-scripts/httpd/pre-init/50-update-ServerName.sh
             name: server-name-script
+            subPath: 50-update-ServerName.sh
           - mountPath: /etc/httpd/conf.modules.d/11-auth_mellon-debug.conf
             name: debug
         dnsPolicy: ClusterFirst
