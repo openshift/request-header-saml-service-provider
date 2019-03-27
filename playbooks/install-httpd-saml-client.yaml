@@ -11,7 +11,7 @@
             -H "Content-Type: application/json;charset=utf-8" \
             --data "@saml2/mellon-metadata.xml" \
             {{ idp_url }}/auth/admin/realms/{{ ocp_realm }}/client-description-converter > saml2/mellon-idp-client.json
-        jq -s '.[0] * .[1]' saml2/mellon-idp-client.json rh-sso/idp-mappers.json > saml2/mellon-idp-client-with-mappers.json
+        jq -s '.[0] * .[1]' saml2/mellon-idp-client.json ../rh-sso/idp-mappers.json > saml2/mellon-idp-client-with-mappers.json
     - name: upload client json to config map
       command: oc create cm mellon-rh-sso-client --from-file=saml2/mellon-idp-client-with-mappers.json -n {{ sso_namespace }}
     - name: mount configmap volume
@@ -30,6 +30,6 @@
     - name: update configmap with new idp data (restart created new)
       shell: |
         curl -k -o saml2/idp-metadata.xml {{ idp_saml_metadata_url }}
-        oc delete cm saml2 -n {{ httpd_saml_namespace }}
-        oc create cm saml2 --from-file=saml2 -n {{ httpd_saml_namespace }}
-        oc rollout latest dc/httpd -n {{ httpd_saml_namespace }}
+        oc delete cm httpd-saml2-config -n {{ httpd_saml_namespace }}
+        oc create cm httpd-saml2-config --from-file=saml2 -n {{ httpd_saml_namespace }}
+        oc rollout latest dc/saml-auth -n {{ httpd_saml_namespace }}

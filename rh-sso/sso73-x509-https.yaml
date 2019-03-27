@@ -181,6 +181,33 @@ objects:
           namespace: ${IMAGE_STREAM_NAMESPACE}
       type: ImageChange
     - type: ConfigChange
+- apiVersion: image.openshift.io/v1
+  kind: ImageStream
+  metadata:
+    annotations:
+      description: Red Hat SSO 7.3
+      openshift.io/display-name: Red Hat Single Sign-On 7.3
+      openshift.io/provider-display-name: Red Hat, Inc.
+    name: redhat-sso73-openshift
+    namespace: ${IMAGE_STREAM_NAMESPACE}
+  spec:
+    lookupPolicy:
+      local: false
+    tags:
+    - annotations:
+        description: Red Hat SSO 7.3
+        iconClass: icon-sso
+        openshift.io/display-name: Red Hat Single Sign-On 7.3
+        supports: sso:7.3
+        tags: sso,keycloak,redhat,hidden
+        version: "1.0"
+      from:
+        kind: DockerImage
+        name: registry.access.redhat.com/redhat-sso-7/sso73-openshift:1.0
+      importPolicy: {}
+      name: "1.0"
+      referencePolicy:
+        type: Source
 parameters:
 - description: The name for the application.
   displayName: Application Name

@@ -14,4 +14,4 @@
         -p=SSO_ADMIN_USERNAME={{ idp_admin_user }} \ 
         -p=SSO_ADMIN_PASSWORD={{ idp_admin_password }} \
         -p=SSO_REALM={{ ocp_realm }} \
-        | oc create -f- -n {{ sso_namespace }}
+        | oc create -f-

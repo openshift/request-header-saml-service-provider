@@ -19,7 +19,13 @@
         mv ${file_prefix}.xml saml2/mellon-metadata.xml
         curl -k -o saml2/idp-metadata.xml {{ idp_saml_metadata_url }}
     - name: Create certificate configmaps
-      command: oc create cm saml2 --from-file=saml2 -n {{ httpd_saml_namespace }}
+      command: oc create cm httpd-saml2-config --from-file=saml2 -n {{ httpd_saml_namespace }}
+    - name: Create debug TODO add conditional to create from file
+      command: oc create cm debug
+- name: Install HTTPD SAML proxy certs from Master
+  hosts: master-0
+  become: yes
+  tasks:
     - name: Create OCP API Client Certficates
       shell: | 
         oc adm create-api-client-config \
@@ -30,25 +36,25 @@
           --signer-serial='/etc/origin/master/ca.serial.txt' \
           --user='system:proxy'
         cat /etc/origin/master/proxy/system\:proxy.crt /etc/origin/master/proxy/system\:proxy.key > /etc/origin/master/proxy/authproxy.pem
-        oc create secret generic httpd-ose-certs-secret --from-file=/etc/origin/master/proxy/authproxy.pem --from-file=/etc/origin/master/proxy/ca.crt
-      delegate_to: master-0
+        oc create secret generic httpd-ose-certs-secret --from-file=/etc/origin/master/proxy/authproxy.pem --from-file=/etc/origin/master/proxy/ca.crt -n {{ httpd_saml_namespace }}
     - name: Create SAML Proxy Client Certificates
       shell: | 
         oc adm ca create-server-cert \
           --signer-cert='/etc/origin/master/ca.crt' \
           --signer-key='/etc/origin/master/ca.key' \
           --signer-serial='/etc/origin/master/ca.serial.txt' \
-          --hostnames=${SAML_PROXY_FQDN} \
+          --hostnames={{ mellon_proxy_cn }} \
           --cert=/etc/origin/master/httpd-server-certs/server.crt \
           --key=/etc/origin/master/httpd-server-certs/server.key
         mv /etc/origin/master/httpd-server-certs/{server.crt,httpd.pem}
         mv /etc/origin/master/httpd-server-certs/{server.key,httpd-key.pem}
-        oc create secret generic httpd-server-cert-secret --from-file=/etc/origin/master/httpd-server-certs/httpd.pem
-        oc create secret generic httpd-server-key-secret --from-file=/etc/origin/master/httpd-server-certs/httpd-key.pem
-        oc create secret generic httpd-server-ca-cert-secret --from-file=/etc/origin/master/ca.crt
-      delegate_to: master-0
-    - name: Update certificate locations in Apache Configs
-      command: oc create cm  ssl-proxy-script --from-file ../saml-service-provider/41-update-SSLProxy.sh -n {{ httpd_saml_namespace }}
+        oc create secret generic httpd-server-cert-secret --from-file=/etc/origin/master/httpd-server-certs/httpd.pem -n {{ httpd_saml_namespace }}
+        oc create secret generic httpd-server-key-secret --from-file=/etc/origin/master/httpd-server-certs/httpd-key.pem -n {{ httpd_saml_namespace }}
+        oc create secret generic httpd-server-ca-cert-secret --from-file=/etc/origin/master/ca.crt -n {{ httpd_saml_namespace }}
+- name: Run template installation
+  hosts: localhost
+  become: no
+  tasks:
     - name: Create ServerName configmap
       command: oc create cm server-name-script --from-file ../saml-service-provider/50-update-ServerName.sh -n {{ httpd_saml_namespace }}
     - name: Run template install
@@ -57,12 +63,9 @@
           -p=OPENSHIFT_MASTER_PUBLIC_URL={{ ocp_url }} \ 
           -p=PROXY_PATH=/oauth \
           -p=PROXY_DESTINATION={{ ocp_url}}/oauth \
-          -p=PROXY_MACHINE_CERTIFICATE=/etc/pki/tls/private/localhost.pem \
           -p=APPLICATION_DOMAIN={{ mellon_proxy_cn }} \
           -p=REMOTE_USER_SAML_ATTRIBUTE={{ remote_user_saml_attribute }} \
           -p=REMOTE_USER_NAME_SAML_ATTRIBUTE={{ remote_user_name_saml_attribute }} \
           -p=REMOTE_USER_EMAIL_SAML_ATTRIBUTE={{ remote_user_email_saml_attribute }} \
           -p=REMOTE_USER_PREFERRED_USERNAME_SAML_ATTRIBUTE={{ remote_user_preferred_username }} \
           | oc create -f- -n {{ httpd_saml_namespace }}
-    - name: Create route
-      command: oc create route reencrypt httpd --service=httpd --dest-ca-cert=localhost.pem --hostname={{ mellon_proxy_cn }} -n {{ httpd_saml_namespace }}

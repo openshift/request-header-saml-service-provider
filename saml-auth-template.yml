@@ -23,12 +23,23 @@ objects:
       name: saml-auth
     sessionAffinity: None
     type: ClusterIP
+- apiVersion: v1
+  kind: Route
+  metadata:
+    name: saml-auth
+  spec:
+    host: "${APPLICATION_DOMAIN}"
+    to:
+      kind: Service
+      name: saml-auth
+    tls:
+      termination: passthrough
 - apiVersion: apps.openshift.io/v1
   kind: DeploymentConfig
   metadata:
     name: saml-auth
   spec:
-    replicas: 0
+    replicas: 1
     selector:
       name: saml-auth
     strategy:
@@ -76,21 +87,13 @@ objects:
           resources: {}
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
-          readinessProbe:
-            exec:
-              command:
-              - "/usr/bin/curl"
-              - "-k"
-              - https://127.0.0.1:8443/logged_out.html
-            initialDelaySeconds: 10
-            timeoutSeconds: 1
           volumeMounts:
           - mountPath: /etc/httpd/saml2
             name: httpd-saml2-config
           - mountPath: /etc/httpd/conf/ose_certs
             name: httpd-ose-certs
           - mountPath: /opt/app-root/httpd-ssl/certs
-            name: httpd-server-cert
+            name: httpd-server-certs
           - mountPath: /opt/app-root/httpd-ssl/private
             name: httpd-server-key
           - mountPath: /opt/app-root/httpd-ssl/certs/ca
@@ -108,9 +111,9 @@ objects:
         terminationGracePeriodSeconds: 30
         volumes:
         - name: httpd-saml2-config
-          secret:
+          configMap:
             defaultMode: 420
-            secretName: httpd-saml2-config-secret
+            name: httpd-saml2-config
         - name: httpd-ose-certs
           secret:
             defaultMode: 420
@@ -119,7 +122,7 @@ objects:
           secret:
             defaultMode: 420
             secretName: httpd-server-cert-secret
-        - name: httpd-server-certs
+        - name: httpd-server-key
           secret:
             defaultMode: 420
             secretName: httpd-server-key-secret

@@ -2,10 +2,6 @@
 - name: Install RequestHeader Oauth Config in master-config.yaml
   hosts: masters
   tasks:
-    - name: push httpd-saml certificate
-      copy:
-        src: localhost.pem
-        dest: /etc/origin/master/httpd-saml.pem
     - name: remove existing HTPasswd provider
       replace:
         path: /etc/origin/master/master-config.yaml
@@ -23,7 +19,7 @@
                 apiVersion: v1
                 kind: RequestHeaderIdentityProvider
                 loginURL: "{{ mellon_proxy_url }}/oauth/authorize?${query}"
-                clientCA: /etc/origin/master/httpd-saml.pem
+                clientCA: /etc/origin/master/ca.crt
                 headers:
                 - X-Remote-User
                 - Remote-User
