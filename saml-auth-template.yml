@@ -103,8 +103,6 @@ objects:
           - mountPath: /usr/share/container-scripts/httpd/pre-init/50-update-ServerName.sh
             name: server-name-script
             subPath: 50-update-ServerName.sh
-          - mountPath: /etc/httpd/conf.modules.d/11-auth_mellon-debug.conf
-            name: debug
         dnsPolicy: ClusterFirst
         restartPolicy: Always
         schedulerName: default-scheduler
@@ -139,10 +137,6 @@ objects:
             defaultMod: 420
             name: server-name-script
           name: server-name-script
-        - configMap:
-            defaultMod: 420
-            name: debug
-          name: debug
     triggers:
     - imageChangeParams:
         automatic: true

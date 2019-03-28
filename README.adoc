@@ -1,6 +1,12 @@
 TODO:
-- fix variable mapping to user in Rh-SSO
-- update webconsole logout
-- variables for various entries, such as image source
+
 - make RH-SSO template persistent (otherwise restarts create new server certs)
-- validate CA cert needed in openshift.conf
+- Uninett bug 
+  [Thu Mar 28 02:39:17.165645 2019] [:error] [pid 1] (2)No such file or directory: could not open mellon diagnostics log file /etc/httpd/|/usr/bin/cat.
+
+ https://github.com/Uninett/mod_auth_mellon/blob/master/auth_mellon_diagnostics.c#L325
+
+- Uninett bug - MellonSetEnv must be in same block
+
+- test changes for mellon script
+- Update README.md
