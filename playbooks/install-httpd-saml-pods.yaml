@@ -7,12 +7,16 @@
       command: oc new-project {{ httpd_saml_namespace }}
     - name: Create apache conf configmap
       command: oc create cm httpd-mellon-conf --from-file=../saml-service-provider/openshift.conf -n {{ httpd_saml_namespace }}
+    - name: Pull down mellon_create_metadata.sh script
+      shell: |
+        wget https://raw.githubusercontent.com/Uninett/mod_auth_mellon/v0.14.0/mellon_create_metadata.sh
+        chmod u+x mellon_create_metadata.sh
     - name: Create certs
       shell: |
         mellon_endpoint_url="{{ mellon_proxy_url }}/mellon"
         mellon_entity_id="${mellon_endpoint_url}/metadata"
-        file_prefix="$(echo "$mellon_entity_id" | sed 's/[^A-Za-z.]/_/g' | sed 's/__*/_/g')"
-        ../saml-service-provider/mellon_create_metadata.sh $mellon_entity_id $mellon_endpoint_url
+        file_prefix="$(echo "$mellon_entity_id" | sed 's/[^0-9A-Za-z.]/_/g' | sed 's/__*/_/g')"
+        ./mellon_create_metadata.sh $mellon_entity_id $mellon_endpoint_url
         mkdir saml2
         mv ${file_prefix}.cert saml2/mellon.crt
         mv ${file_prefix}.key saml2/mellon.key
