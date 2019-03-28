@@ -6,4 +6,3 @@ ansible.cfg
 inventory
 **/params
 *.retry
-mellon_create_metadata.sh

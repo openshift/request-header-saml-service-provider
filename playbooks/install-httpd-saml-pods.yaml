@@ -7,22 +7,17 @@
       command: oc new-project {{ httpd_saml_namespace }}
     - name: Create apache conf configmap
       command: oc create cm httpd-mellon-conf --from-file=../saml-service-provider/openshift.conf -n {{ httpd_saml_namespace }}
-    - name: Pull down mellon_create_metadata.sh script
-      get_url:
-        url: https://raw.githubusercontent.com/Uninett/mod_auth_mellon/v0.14.0/mellon_create_metadata.sh
-        dest: mellon_create_metadata.sh
-        mode: u+x
     - name: Create certs
       shell: |
         mellon_endpoint_url="{{ mellon_proxy_url }}/mellon"
         mellon_entity_id="${mellon_endpoint_url}/metadata"
         file_prefix="$(echo "$mellon_entity_id" | sed 's/[^0-9A-Za-z.]/_/g' | sed 's/__*/_/g')"
-        ./mellon_create_metadata.sh $mellon_entity_id $mellon_endpoint_url
-        mkdir saml2
-        mv ${file_prefix}.cert saml2/mellon.crt
-        mv ${file_prefix}.key saml2/mellon.key
-        mv ${file_prefix}.xml saml2/mellon-metadata.xml
-        curl -k -o saml2/idp-metadata.xml {{ idp_saml_metadata_url }}
+        ../saml-service-provider/mellon_create_metadata.sh $mellon_entity_id $mellon_endpoint_url
+        mkdir ../saml-service-provider/saml2
+        mv ${file_prefix}.cert ../saml-service-provider/saml2/mellon.crt
+        mv ${file_prefix}.key ../saml-service-provider/saml2/mellon.key
+        mv ${file_prefix}.xml ../saml-service-provider/saml2/mellon-metadata.xml
+        curl -k -o ../saml-service-provider/saml2/idp-metadata.xml {{ idp_saml_metadata_url }}
     - name: Create certificate configmaps
       command: oc create cm httpd-saml2-config --from-file=saml2 -n {{ httpd_saml_namespace }}
 - name: Install HTTPD SAML proxy certs from Master
