@@ -1,0 +1,71 @@
+== Build a Debug Container for HTTPD with Mellon Diagnostics
+
+. Create a debug container
+
+  $ oc new-build --name=httpd-debug https://github.com/briantward/httpd-container#httpd-24-rhel7-mellon-diagnostics --context-dir=2.4
+
+. Scale your DeploymentConfig down to zero (Assuming you have already created the deployment)
+
+  $ oc scale dc saml-auth --replicas=0
+
+. Remove Build Triggers so that the next patch command works correctly.
+
+  $ oc patch dc saml-auth -p '{"spec":{"triggers":[]}}'
+
+. Patch your DeploymentConfig to use the newly built debug image (assuming you did this in ocp-saml-proxy namespace)
+
+  $ oc patch dc saml-auth -p '{"spec":{"template":{"spec":{"containers":[{"name":"saml-auth","image":"docker-registry.default.svc:5000/ocp-saml-proxy/httpd-debug"}]}}}}'
+
+. Create a configMap to enable the Mellon Diagnostics module at load time
+
+  $ oc create cm mellon-diagnostics-module --from-file=10-auth_mellon.conf
+
+. Add a volume mount to enable the Mellon Diagnostics module at load time
+
+  $ oc set volume dc/saml-auth --add --name=mellon-diagnostics-module --mount-path=/etc/httpd/conf.modules.d/10-auth_mellon.conf --sub-path=10-auth_mellon.conf --type=configmap --configmap-name=mellon-diagnostics-module
+
+. Create a configMap to set the Directives to enable Mellon Diagnostics
+
+  $ oc create cm mellon-diagnostics-directives --from-file=openshift.debug.conf
+
+. Add a volume mount to set the Directives to enable Mellon Diagnostics
+
+  $ oc set volume dc/saml-auth --add --name=mellon-diagnostics-directives --mount-path=/etc/httpd/conf.d/openshift.debug.conf --type=configmap --configmap-name=mellon-diagnostics-directives
+
+. Scale up the DeploymentConfig
+
+  $ oc scale dc saml-auth --replicas=1
+
+. Find the Mellon Diagnostics logs (does not redirect to standard out at this time)
+
+  $ oc rsh $POD_NAME
+  $ more /etc/httpd/conf.d/mellon_diagnostics
+
+== Notes
+ 
+Source for Image Build: +
+https://github.com/briantward/httpd-container/tree/httpd-24-rhel7-mellon-diagnostics
+
+This build is based on the same build process for the apache httpd server found in the Red Hat Container Catalog: +
+https://access.redhat.com/containers/?tab=overview#/registry.access.redhat.com/rhscl/httpd-24-rhel7
+
+The original source for that particular image is found here: +
+https://github.com/sclorg/httpd-container
+
+It is based off the Software Collections project.  Unfortunately, we cannot simply extend that image because there is
+no SCL library for the Mellon Diagnostics library for RHEL 7.  That will change in RHEL 8 as the image is no longer
+bound to the SCL library.  When that happens, we will be able to simple extend the RHEL 8 httpd base image and 
+add only the Mellon Diagnositcs library as needed.  
+
+This project is a modification of the original Dockerfile so that it pulls from the base RHEL repos and gets the 
+appropriate Mellon Diagnostics library.  It is somewhat of a merge between the current RHEL 7 httpd build and the
+RHEL 8 Beta build.  
+
+For our intents and puroses, it is as close to the original RHEL 7 SCL-based httpd image as necessary and should be a decent swap out.
+
+RPM for httpd24 via rhel-server-rhscl-7-rpms: +
+https://access.redhat.com/downloads/content/httpd24-mod_auth_mellon/0.13.1-2.el7/x86_64/fd431d51/package
+
+RPM for httpd mellon diagnostics via rhel-7-server-optional-rpms: +
+https://access.redhat.com/downloads/content/mod_auth_mellon-diagnostics/0.14.0-2.el7/x86_64/fd431d51/package
+
