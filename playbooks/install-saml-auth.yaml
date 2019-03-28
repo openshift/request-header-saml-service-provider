@@ -60,7 +60,7 @@
         oc process -f ../saml-auth-template.yml \
           -p=OPENSHIFT_MASTER_PUBLIC_URL={{ ocp_url }} \ 
           -p=PROXY_PATH=/oauth \
-          -p=PROXY_DESTINATION={{ ocp_url}}/oauth \
+          -p=PROXY_DESTINATION={{ ocp_url }}/oauth \
           -p=APPLICATION_DOMAIN={{ mellon_proxy_cn }} \
           -p=REMOTE_USER_SAML_ATTRIBUTE={{ remote_user_saml_attribute }} \
           -p=REMOTE_USER_NAME_SAML_ATTRIBUTE={{ remote_user_name_saml_attribute }} \

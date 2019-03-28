@@ -1,0 +1,13 @@
+== TODO:
+
+. make RH-SSO template persistent (otherwise restarts create new server certs)
+. Uninett bug 
+  [Thu Mar 28 02:39:17.165645 2019] [:error] [pid 1] (2)No such file or directory: could not open mellon diagnostics log file /etc/httpd/|/usr/bin/cat.
+
+ https://github.com/Uninett/mod_auth_mellon/blob/master/auth_mellon_diagnostics.c#L325
+
+. Uninett bug - MellonSetEnv must be in same block
+
+. Update README.md
+
+. Test out RH-SSO deployment with prepared empty configmap, to be updated later rather than added newly, so that it does not create a new deployment
