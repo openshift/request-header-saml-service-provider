@@ -116,23 +116,18 @@ All of this will be done on your first OpenShift master. While doing work direct
 
 ### Set up environment variables
 
-Setting these now will make running future steps much more of just a copy/paste exercize rather than more manual fill in the blank.
+Setting these now will make running future steps much more of just a copy/paste exercise rather than more manual fill in the blank.
 
 ```sh
-SAML_CONFIG_DIR=~/saml-config
-SAML_UTILITY_PROJECTS_DIR=~/saml-utility-projects
-SAML_PROXY_FQDN=saml-proxy.CHANGE.ME
+SAML_CONFIG_DIR=/etc/origin/master/proxy
+SAML_UTILITY_PROJECTS_DIR=/opt/saml-utility-projects
+SAML_PROXY_FQDN=saml.apps.ocp.example.com
 SAML_OCP_PROJECT=ocp-saml-proxy
-OPENSHIFT_MASTER_PUBLIC_URL=
-ENTITY_ID=https://${SAML_PROXY_FQDN}/mellon/metadata
-ENDPOINT_URL=https://${SAML_PROXY_FQDN}/mellon
+OPENSHIFT_MASTER_PUBLIC_URL=https://openshift.ocp.example.com
 ```
 * `SAML_CONFIG_DIR` - directory to store all of your SAML configuration
 * `UPSTREAM_PROJECTS_DIR` - directory to check out required upstream projects
-* `SAML_PROXY_FQDN` - This will be the FQDN to your SAML proxy (Apache mod\_auth\_mellon).
-                      This will typically be something like `saml-proxy.MY-OCP-WILDCARD-DOMAIN`.
-                      If you have `*.apps.non-prod.example.com` as your wildcard domain for your OpenShift cluster then this value would be `saml-proxy.apps.non-prod.example.com`.
-                      You could also create a vanity DNS entry and have it route to your OpenShift routers but that isn't needed or typical unless you don't have the a wildcard DNS entry for your OpenShift cluster.
+* `SAML_PROXY_FQDN` - This will be the FQDN to your SAML proxy (Apache mod\_auth\_mellon), typically something like `saml.apps.ocp.example.com`.
 * `SAML_OCP_PROJECT` - OpenShift project to store the SAML Proxy resources.
 * `OPENSHIFT_MASTER_PUBLIC_URL` - OpenShift masters public URL. This is the URL you access the OpenShift console on. If using a port other then 443 then include `:PORT` as part of the URL.
 * `ENTITY_ID` - An ID unique to your IdP. By convention this should resolve to your meta data file. In the case of the Apache Mellon container created by this project that would be `https://SAML_PROXY_FQDN/mellon/metadata`
@@ -155,8 +150,10 @@ oc new-project ${SAML_OCP_PROJECT} --description='SAML proxy for RequestHeader a
 # Note, Secrets cannot have key names with an 'underscore' in them, so when
 # creating metadata files with `mellon_create_metadata.sh` the resulting files
 # must be renamed appropriately.
+mellon_endpoint_url="{{ saml_auth_url }}/mellon"
+mellon_entity_id="${mellon_endpoint_url}/metadata"
 file_prefix="$(echo "$mellon_entity_id" | sed 's/[^0-9A-Za-z.]/_/g' | sed 's/__*/_/g')"
-./saml-service-provider/mellon_create_metadata.sh ${ENTITY_ID} ${ENDPOINT_URL}
+/opt/saml-service-provider/mellon_create_metadata.sh $mellon_entity_id $mellon_endpoint_url
 mkdir ./saml-service-provider/saml2
 mv ${file_prefix}.cert ./saml-service-provider/saml2/mellon.crt
 mv ${file_prefix}.key ./saml-service-provider/saml2/mellon.key
@@ -164,6 +161,11 @@ mv ${file_prefix}.xml ./saml-service-provider/saml2/mellon-metadata.xml
 
 oc create cm httpd-saml2-config --from-file=./saml-service-provider/saml2 -n ${SAML_OCP_PROJECT}
 ```
+
+Script from the mod_auth_mellon package containing the file `/usr/libexec/mod_auth_mellon/mellon_create_metadata.sh`, with documentation and instructions taken from:
+- https://access.redhat.com/documentation/en-us/red_hat_single_sign-on/7.3/html-single/securing_applications_and_services_guide/#configuring_mod_auth_mellon_with_red_hat_single_sign_on
+- https://www.keycloak.org/docs/latest/securing_apps/index.html#configuring-mod_auth_mellon-with-keycloak
+
 
 ## Get your IdP Provided metadata
 Your IdP administrator must provide you with your IdP metadata XML file. Information they will request from you will include but not necessarily be limited to:
@@ -186,7 +188,9 @@ curl -k -o ../saml-service-provider/saml2/idp-metadata.xml ${IDP_SAML_METADATA_U
 
 ## Configmap of SAML and IdP Metadata
 
+```
 oc create cm httpd-saml2-config --from-file=./saml-service-provider/saml2 -n ${SAML_OCP_PROJECT}
+```
 
 ## Authentication certificate
 Create the necessary certifcates for two way TLS communication between OpenShift oAuth and the SAML Proxy.
@@ -241,7 +245,9 @@ oc create secret generic httpd-server-ca-cert-secret --from-file=/etc/origin/mas
 
 This replaces the ServerName field with your defined FQDN and port from an environment variable.
 
+```
 oc create cm server-name-script --from-file ../saml-service-provider/50-update-ServerName.sh -n ${SAML_OCP_PROJECT}
+```
 
 #### Making changes to secrets
 It's likely you will need to update the value of some secrets.  To do this
@@ -402,7 +408,7 @@ It helps if first you follow [Reducing Debug Footprint](#reducing-debug-footprin
 It can not be stressed enough the importance of having your local IdP administrator be involved with your debuging efforts. The speed at which you can resolve issues is expontential if you can have them monitoring the IdP logs at the same time you are doing your initial testing and reporting back what errors they see, and or, even better, screen sharing those logs with you.
 
 
-# Apendex
+# Appendix
 ## Terms
 Helpful terms and their defintions used throughout this document.
 

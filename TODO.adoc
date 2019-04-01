@@ -1,7 +1,7 @@
 == TODO:
 
 . make RH-SSO template persistent (otherwise restarts create new server certs)
-. Uninett bug 
+. Uninett bug - can't pipe log to anything, reads pipe as part of filename
   [Thu Mar 28 02:39:17.165645 2019] [:error] [pid 1] (2)No such file or directory: could not open mellon diagnostics log file /etc/httpd/|/usr/bin/cat.
 
  https://github.com/Uninett/mod_auth_mellon/blob/master/auth_mellon_diagnostics.c#L325
@@ -10,4 +10,9 @@
 
 . Update README.md
 
+ . Test manual steps and add push/pop back as needed
+
 . Test out RH-SSO deployment with prepared empty configmap, to be updated later rather than added newly, so that it does not create a new deployment
+
+. Add health check page, since logout redirects back to login
+

@@ -18,7 +18,7 @@
               provider:
                 apiVersion: v1
                 kind: RequestHeaderIdentityProvider
-                loginURL: "{{ mellon_proxy_url }}/oauth/authorize?${query}"
+                loginURL: "{{ saml_auth_url }}/oauth/authorize?${query}"
                 clientCA: /etc/origin/master/ca.crt
                 headers:
                 - X-Remote-User

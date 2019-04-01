@@ -69,7 +69,7 @@ objects:
       application: ${APPLICATION_NAME}
     name: ${APPLICATION_NAME}
   spec:
-    host: ${HOSTNAME}
+    host: ${SSO_HOSTNAME}
     tls:
       termination: reencrypt
     to:
@@ -266,6 +266,3 @@ parameters:
   displayName: Container Memory Limit
   name: MEMORY_LIMIT
   value: 1Gi
-- description: Route hostname for application
-  displayNam: Route hostname for application
-  name: HOSTNAME

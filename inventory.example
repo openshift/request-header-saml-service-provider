@@ -1,13 +1,11 @@
 [all:vars]
 ocp_url=https://openshift.ocp.example.com
-idp_url=https://sso.apps.ocp.example.com
-idp_cn=sso.apps.ocp.example.com
-idp_port=443
+idp_hostname=sso.apps.ocp.example.com
+idp_url=https://{{ idp_hostname }}
 idp_admin_user=admin
 idp_admin_password=Pa55word1!
-mellon_proxy_cn=saml.apps.ocp.example.com
-mellon_proxy_url=https://saml.apps.ocp.example.com
-mellon_proxy_port=443
+saml_auth_hostname=saml.apps.ocp.example.com
+saml_auth_url=https://{{ saml_auth_hostname }}
 httpd_saml_namespace=ocp-saml-proxy
 idp_saml_metadata_url=https://sso.apps.ocp.example.com/auth/realms/ocp/protocol/saml/descriptor
 idp_app_name=sso

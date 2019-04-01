@@ -9,8 +9,7 @@
       shell: |
         oc process -f ../rh-sso/sso73-x509-https.yaml \
         -p=APPLICATION_NAME={{ idp_app_name }} \
-        -p=HOSTNAME={{ idp_cn }} \
-        -p=SSO_HOSTNAME={{ idp_cn }} \
+        -p=SSO_HOSTNAME={{ idp_hostname }} \
         -p=SSO_ADMIN_USERNAME={{ idp_admin_user }} \ 
         -p=SSO_ADMIN_PASSWORD={{ idp_admin_password }} \
         -p=SSO_REALM={{ ocp_realm }} \

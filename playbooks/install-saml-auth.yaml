@@ -9,7 +9,7 @@
       command: oc create cm httpd-mellon-conf --from-file=../saml-service-provider/openshift.conf -n {{ httpd_saml_namespace }}
     - name: Create certs
       shell: |
-        mellon_endpoint_url="{{ mellon_proxy_url }}/mellon"
+        mellon_endpoint_url="{{ saml_auth_url }}/mellon"
         mellon_entity_id="${mellon_endpoint_url}/metadata"
         file_prefix="$(echo "$mellon_entity_id" | sed 's/[^0-9A-Za-z.]/_/g' | sed 's/__*/_/g')"
         ../saml-service-provider/mellon_create_metadata.sh $mellon_entity_id $mellon_endpoint_url
@@ -41,7 +41,7 @@
           --signer-cert='/etc/origin/master/ca.crt' \
           --signer-key='/etc/origin/master/ca.key' \
           --signer-serial='/etc/origin/master/ca.serial.txt' \
-          --hostnames={{ mellon_proxy_cn }} \
+          --hostnames={{ saml_auth_hostname }} \
           --cert=/etc/origin/master/httpd-server-certs/server.crt \
           --key=/etc/origin/master/httpd-server-certs/server.key
         mv /etc/origin/master/httpd-server-certs/{server.crt,httpd.pem}
@@ -61,7 +61,7 @@
           -p=OPENSHIFT_MASTER_PUBLIC_URL={{ ocp_url }} \ 
           -p=PROXY_PATH=/oauth \
           -p=PROXY_DESTINATION={{ ocp_url }}/oauth \
-          -p=APPLICATION_DOMAIN={{ mellon_proxy_cn }} \
+          -p=APPLICATION_DOMAIN={{ saml_auth_hostname }} \
           -p=REMOTE_USER_SAML_ATTRIBUTE={{ remote_user_saml_attribute }} \
           -p=REMOTE_USER_NAME_SAML_ATTRIBUTE={{ remote_user_name_saml_attribute }} \
           -p=REMOTE_USER_EMAIL_SAML_ATTRIBUTE={{ remote_user_email_saml_attribute }} \
