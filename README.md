@@ -1,6 +1,6 @@
 # request-header-saml-service-provider
 
-This project sets up OpenShift [Request header](https://docs.openshift.com/container-platform/3.11/install_config/configuring_authentication.html#RequestHeaderIdentityProvider) authentication between a SAML IdP and OpenShift with mod_auth_mellon acting as a SAML Proxy.  There are Ansible playbooks available to roll the installs automatically, but be aware they are not resilient and you may need to modify them to work with your own environment.  Contributions and improvements are always welcome.  The playbook uses RH-SSO, built upon Keycloak, as an example IdP.  It would be great to spin up a test cluster just to practice these steps and understand how everything works, prior to attempting to integrate with another IdP.  The playbooks expect a minimal cluster install with the basic httpd-auth provider.  
+This project sets up OpenShift [Request header](https://docs.openshift.com/container-platform/3.11/install_config/configuring_authentication.html#RequestHeaderIdentityProvider) authentication between a SAML IdP and OpenShift with mod_auth_mellon acting as a SAML Proxy.  There are Ansible playbooks available to roll the installs automatically, but be aware they are not resilient and you may need to modify them to work with your own environment.  Contributions and improvements are always welcome.  The playbook uses RH-SSO, built upon Keycloak, as an example IdP.  It would be great to spin up a test cluster just to practice these steps and understand how everything works, prior to attempting to integrate with another IdP.  The playbooks expect a minimal cluster install with the basic HTPasswd provider.  
 
 The high level communication flow that is created by implementing this solution is:
 1. OCP Console
@@ -25,7 +25,7 @@ This solution will implement SAML-based authentication for your OpenShift cluste
 
 This proxy is a solution to proxy ONLY the OAuth login endpoint.  We do not recommend you proxy all content requested by either the Master API or the Web Console.  That would not be a good idea because the proxy likely cannot pass all request types through correctly (websockets, SPDY).  The OpenShift OAuth provider should alone be responsible for the security of the platform.
 
-# Automated Installs
+# Ansible Automated Installs
 
 WARNING: Be sure to run this only on test environments with NO tenants!!  This is not production ready and will probably require manual adjustments based on your environment and implementation.
 
@@ -37,6 +37,11 @@ We recommend you setup your inventory based on the example provided and update t
 $ mv inventory.example inventory
 ```
 
+Login to your OpenShift Client with a cluster-admin user
+
+```
+$ oc login https://openshift.ocp.example.com:443
+```
 
 ## Install the IdP
 
@@ -120,7 +125,7 @@ Setting these now will make running future steps much more of just a copy/paste 
 
 ```sh
 SAML_CONFIG_DIR=/etc/origin/master/proxy
-SAML_UTILITY_PROJECTS_DIR=/opt/saml-utility-projects
+SAML_UTILITY_PROJECTS_DIR=/opt/request-header-saml-service-provider
 SAML_PROXY_FQDN=saml.apps.ocp.example.com
 SAML_OCP_PROJECT=ocp-saml-proxy
 OPENSHIFT_MASTER_PUBLIC_URL=https://openshift.ocp.example.com
@@ -136,7 +141,7 @@ OPENSHIFT_MASTER_PUBLIC_URL=https://openshift.ocp.example.com
 ## Create place to store SAML config files and clone required utitility projects
 ```sh
 mkdir ${SAML_CONFIG_DIR}
-mkdir ${SAML_UTILITY_PROJECTS_DIR}
+cd /opt
 git clone https://github.com/openshift/request-header-saml-service-provider.git
 ```
 
@@ -153,13 +158,13 @@ oc new-project ${SAML_OCP_PROJECT} --description='SAML proxy for RequestHeader a
 mellon_endpoint_url="{{ saml_auth_url }}/mellon"
 mellon_entity_id="${mellon_endpoint_url}/metadata"
 file_prefix="$(echo "$mellon_entity_id" | sed 's/[^0-9A-Za-z.]/_/g' | sed 's/__*/_/g')"
-/opt/saml-service-provider/mellon_create_metadata.sh $mellon_entity_id $mellon_endpoint_url
-mkdir ./saml-service-provider/saml2
-mv ${file_prefix}.cert ./saml-service-provider/saml2/mellon.crt
-mv ${file_prefix}.key ./saml-service-provider/saml2/mellon.key
-mv ${file_prefix}.xml ./saml-service-provider/saml2/mellon-metadata.xml
+${SAML_UTILITY_PROJECTS_DIR}/mellon_create_metadata.sh $mellon_entity_id $mellon_endpoint_url
+mkdir ${SAML_UTILITY_PROJECTS_DIR}/saml-service-provider/saml2
+mv ${SAML_UTILITY_PROJECTS_DIR}/${file_prefix}.cert ${SAML_UTILITY_PROJECTS_DIR}/saml-service-provider/saml2/mellon.crt
+mv ${SAML_UTILITY_PROJECTS_DIR}/${file_prefix}.key ${SAML_UTILITY_PROJECTS_DIR}/saml-service-provider/saml2/mellon.key
+mv ${SAML_UTILITY_PROJECTS_DIR}/${file_prefix}.xml ${SAML_UTILITY_PROJECTS_DIR}/saml-service-provider/saml2/mellon-metadata.xml
 
-oc create cm httpd-saml2-config --from-file=./saml-service-provider/saml2 -n ${SAML_OCP_PROJECT}
+oc create cm httpd-saml2-config --from-file=${SAML_UTILITY_PROJECTS_DIR}/saml-service-provider/saml2 -n ${SAML_OCP_PROJECT}
 ```
 
 Script from the mod_auth_mellon package containing the file `/usr/libexec/mod_auth_mellon/mellon_create_metadata.sh`, with documentation and instructions taken from:
@@ -183,13 +188,13 @@ Once recieved this file should be put in `./saml-service-provider/saml2/idp-meta
 
 ```
 # Pull your IdP Metadata as necessary and place it here
-curl -k -o ../saml-service-provider/saml2/idp-metadata.xml ${IDP_SAML_METADATA_URL}
+curl -k -o ${SAML_UTILITY_PROJECTS_DIR}/saml-service-provider/saml2/idp-metadata.xml ${IDP_SAML_METADATA_URL}
 ```
 
 ## Configmap of SAML and IdP Metadata
 
 ```
-oc create cm httpd-saml2-config --from-file=./saml-service-provider/saml2 -n ${SAML_OCP_PROJECT}
+oc create cm httpd-saml2-config --from-file=${SAML_UTILITY_PROJECTS_DIR}/saml-service-provider/saml2 -n ${SAML_OCP_PROJECT}
 ```
 
 ## Authentication certificate
@@ -246,7 +251,7 @@ oc create secret generic httpd-server-ca-cert-secret --from-file=/etc/origin/mas
 This replaces the ServerName field with your defined FQDN and port from an environment variable.
 
 ```
-oc create cm server-name-script --from-file ../saml-service-provider/50-update-ServerName.sh -n ${SAML_OCP_PROJECT}
+oc create cm server-name-script --from-file ${SAML_UTILITY_PROJECTS_DIR}/saml-service-provider/50-update-ServerName.sh -n ${SAML_OCP_PROJECT}
 ```
 
 #### Making changes to secrets
@@ -263,7 +268,7 @@ oc rollout latest saml-auth
 ## Deploying SAML Proxy
 ```sh
 oc project ${SAML_OCP_PROJECT}
-oc process -f ../saml-auth-template.yml \
+oc process -f ${SAML_UTILITY_PROJECTS_DIR}/saml-auth-template.yml \
   -p=OPENSHIFT_MASTER_PUBLIC_URL=${OPENSHIFT_MASTER_PUBLIC_URL} \
   -p=PROXY_PATH=/oauth \
   -p=PROXY_DESTINATION=OPENSHIFT_MASTER_PUBLIC_URL/oauth \
