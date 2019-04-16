@@ -127,8 +127,11 @@ Setting these now will make running future steps much more of just a copy/paste 
 SAML_CONFIG_DIR=/etc/origin/master/proxy
 SAML_UTILITY_PROJECTS_DIR=/opt/request-header-saml-service-provider
 SAML_PROXY_FQDN=saml.apps.ocp.example.com
+SAML_PROXY_URL=https://${SAML_PROXY_FQDN}
 SAML_OCP_PROJECT=ocp-saml-proxy
 OPENSHIFT_MASTER_PUBLIC_URL=https://openshift.ocp.example.com
+GIT_REPO=https://github.com/openshift/request-header-saml-service-provider
+GIT_BRANCH=master
 ```
 * `SAML_CONFIG_DIR` - directory to store all of your SAML configuration
 * `UPSTREAM_PROJECTS_DIR` - directory to check out required upstream projects
@@ -189,6 +192,24 @@ Once recieved this file should be put in `./saml-service-provider/saml2/idp-meta
 curl -k -o ${SAML_CONFIG_DIR}/saml2/idp-metadata.xml ${IDP_SAML_METADATA_URL}
 ```
 
+## Deploy a test RH-SSO IdP Instance
+
+If you would like something to test against before integrating directly with your IdP, try using RH-SSO, which is based on upstream Keycloak.  
+
+```
+# oc new-project sso
+
+# oc process -f ${SAML_UTILITY_PROJECTS_DIR}/rh-sso/sso73-x509-https.yaml \
+        -p=APPLICATION_NAME=${APPLICATION_NAME} \
+        -p=SSO_HOSTNAME=${SSO_HOSTNAME} \
+        -p=SSO_ADMIN_USERNAME=${SSO_ADMIN_USERNAME} \
+        -p=SSO_ADMIN_PASSWORD=${SSO_ADMIN_PASSWORD} \
+        -p=SSO_REALM=${SSO_REALM} \
+        | oc create -f-
+```
+
+Note that there is no persistent database backing this template.  This is for test purposes only and a pod restart will clear the app configuration.
+
 ## Configmap of SAML and IdP Metadata
 
 ```
@@ -247,6 +268,14 @@ This replaces the ServerName field with your defined FQDN and port from an envir
 oc create cm server-name-script --from-file ${SAML_UTILITY_PROJECTS_DIR}/saml-service-provider/50-update-ServerName.sh -n ${SAML_OCP_PROJECT}
 ```
 
+### Create Apache ConfigMap
+
+Mount your Mellon Specific apache settings.
+
+```
+ec create cm httpd-mellon-conf --from-file=${SAML_UTILITY_PROJECTS_DIR}/saml-service-provider/openshift.conf -n ${SAML_OCP_PROJECT}
+```
+
 #### Making changes to secrets
 It's likely you will need to update the value of some secrets.  To do this
 simply delete the secret and recreate it.  Then trigger a new deployment.
@@ -264,7 +293,7 @@ oc project ${SAML_OCP_PROJECT}
 oc process -f ${SAML_UTILITY_PROJECTS_DIR}/saml-auth-template.yml \
   -p=OPENSHIFT_MASTER_PUBLIC_URL=${OPENSHIFT_MASTER_PUBLIC_URL} \
   -p=PROXY_PATH=/oauth \
-  -p=PROXY_DESTINATION=OPENSHIFT_MASTER_PUBLIC_URL/oauth \
+  -p=PROXY_DESTINATION=${OPENSHIFT_MASTER_PUBLIC_URL}/oauth \
   -p=APPLICATION_DOMAIN=${APPLICATION_DOMAIN} \
   -p=REMOTE_USER_SAML_ATTRIBUTE=id \
   -p=REMOTE_USER_NAME_SAML_ATTRIBUTE=name \
@@ -277,6 +306,58 @@ The template defines replicas as 1.  This pod can be scaled to multiple replicas
 
 ```sh
 oc scale --replicas=2 dc saml-auth
+```
+
+## Configure your RH-SSO IdP
+
+1. Create an OpenShift Realm
+
+TODO: manual steps and pics
+
+To automate this step: 
+
+```
+access_token=`curl -k -d "client_id=admin-cli" -d "username={{ idp_admin_user }}" --data-urlencode "password={{ idp_admin_password }}" -d "grant_type=password" "{{ idp_url }}/auth/realms/master/protocol/openid-connect/token"| jq -r '.access_token'`
+        curl -k -v \
+            -H "Authorization: bearer $access_token" \
+            -H "Content-Type: application/json;charset=utf-8" \
+            --data "@../saml-service-provider/saml2/mellon-metadata.xml" \
+            {{ idp_url }}/auth/admin/realms/{{ ocp_realm }}/client-description-converter > ../saml-service-provider/saml2/mellon-idp-client.json
+        jq -s '.[0] * .[1]' ../saml-service-provider/saml2/mellon-idp-client.json ../rh-sso/idp-mappers.json > ../saml-service-provider/saml2/mellon-idp-client-with-mappers.json
+```
+
+
+2. upload client json to config map
+
+```
+oc create cm mellon-rh-sso-client --from-file=../saml-service-provider/saml2/mellon-idp-client-with-mappers.json -n {{ sso_namespace }}
+```
+
+3. mount configmap volume
+
+```
+oc set volume dc/sso -n {{ sso_namespace }} --add --name=mellon-rh-sso-client --mount-path=/mellon-client --type=configmap --configmap-name=mellon-rh-sso-client --overwrite
+```
+
+4. Add a test user and set the user's password
+
+```
+POD_NAME=`oc get pods -n {{ sso_namespace }} | grep -e "sso.*Running" | head -1 | awk '{print $1}'`
+        TRUSTSTORE_PASSWORD=`oc rsh -n {{ sso_namespace }} $POD_NAME xmllint --xpath "string(/*[namespace-uri()='urn:jboss:domain:8.0' and local-name()='server']/*[namespace-uri()='urn:jboss:domain:8.0' and local-name()='profile']/*[namespace-uri()='urn:jboss:domain:keycloak-server:1.1' and local-name()='subsystem']/*[namespace-uri()='urn:jboss:domain:keycloak-server:1.1' and local-name()='spi' and @name='truststore']/*[namespace-uri()='urn:jboss:domain:keycloak-server:1.1' and local-name()='provider' and @name='file']/*[namespace-uri()='urn:jboss:domain:keycloak-server:1.1' and local-name()='properties']/*[local-name()='property' and @name='password']/@value)" /opt/eap/standalone/configuration/standalone-openshift.xml`
+        oc rsh -n {{ sso_namespace }} $POD_NAME /opt/eap/bin/kcadm.sh config truststore --trustpass $TRUSTSTORE_PASSWORD /opt/eap/keystores/truststore.jks
+        oc rsh -n {{ sso_namespace }} $POD_NAME /opt/eap/bin/kcadm.sh config credentials --server https://{{ idp_app_name }}.{{ sso_namespace }}.svc:8443/auth --realm master --user {{ idp_admin_user }} --password {{ idp_admin_password }}
+        oc rsh -n {{ sso_namespace }} $POD_NAME /opt/eap/bin/kcadm.sh create clients -r {{ ocp_realm }} -f /mellon-client/mellon-idp-client-with-mappers.json
+        oc rsh -n {{ sso_namespace }} $POD_NAME /opt/eap/bin/kcadm.sh create users -r {{ ocp_realm }} -s username={{ realm_test_user }} -s enabled=true -s email={{ realm_test_user_email }} -s firstName={{ realm_test_user_firstname }} -s lastName={{ realm_test_user_lastname }} -o --fields id,username
+        oc rsh -n {{ sso_namespace }} $POD_NAME /opt/eap/bin/kcadm.sh set-password -r {{ ocp_realm }} --username {{ realm_test_user }} --new-password {{ realm_test_user_password }}
+```
+
+5. update configmap with new idp data (restart created new)
+
+```
+curl -k -o ../saml-service-provider/saml2/idp-metadata.xml {{ idp_saml_metadata_url }}
+        oc delete cm httpd-saml2-config -n {{ httpd_saml_namespace }}
+        oc create cm httpd-saml2-config --from-file=../saml-service-provider/saml2 -n {{ httpd_saml_namespace }}
+        oc rollout latest dc/saml-auth -n {{ httpd_saml_namespace }}
 ```
 
 ## Test SAML Proxy

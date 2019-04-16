@@ -1,0 +1,39 @@
+[all:vars]
+ocp_url=https://openshift.willow.lab.upshift.rdu2.redhat.com
+idp_url=https://sso.apps.willow.lab.upshift.rdu2.redhat.com
+idp_hostname=sso.apps.willow.lab.upshift.rdu2.redhat.com
+idp_url=https://{{ idp_hostname }}
+idp_admin_user=admin
+idp_admin_password=RedHat1!
+saml_auth_hostname=saml.apps.willow.lab.upshift.rdu2.redhat.com
+saml_auth_url=https://{{ saml_auth_hostname }}
+httpd_saml_namespace=ocp-saml-proxy
+idp_saml_metadata_url=https://sso.apps.willow.lab.upshift.rdu2.redhat.com/auth/realms/ocp/protocol/saml/descriptor
+idp_app_name=sso
+sso_namespace=sso
+remote_user_saml_attribute=id
+remote_user_name_saml_attribute=name
+remote_user_email_saml_attribute=email
+remote_user_preferred_username=username
+
+ocp_realm=ocp
+realm_test_user=test-user
+realm_test_user_password=RedHat1!
+realm_test_user_email=me@go.com
+realm_test_user_firstname=Test
+realm_test_user_lastname=User
+
+[masters]
+master-0 ansible_host=master-0.willow.lab.upshift.rdu2.redhat.com
+master-1 ansible_host=master-1.willow.lab.upshift.rdu2.redhat.com
+master-2 ansible_host=master-2.willow.lab.upshift.rdu2.redhat.com
+
+[infra]
+infra-0 ansible_host=infra-0.willow.lab.upshift.rdu2.redhat.com
+#infra-1 ansible_host=infra-1.willow.lab.upshift.rdu2.redhat.com
+
+[workers]
+node-0 ansible_host=node-0.willow.lab.upshift.rdu2.redhat.com 
+
+[lb]
+lb-0 ansible_host=lb-0.willow.lab.upshift.rdu2.redhat.com

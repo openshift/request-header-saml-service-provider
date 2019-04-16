@@ -1,0 +1,66 @@
+Changes:
+
+request-header-saml-service-provider/10-auth_mellon.conf.debug
+request-header-saml-service-provider/Dockerfile - removed, switched to a prebuilt httpd image published in container catalog
+request-header-saml-service-provider/Dockerfile.debug - removed, switched to a different custom image build, based on httpd image origins
+request-header-saml-service-provider/httpd.conf - removed, unneeded when using prebuilt httpd image
+request-header-saml-service-provider/logged_out.html - removed, created a redirect back to login page itself
+request-header-saml-service-provider/openshift.conf - modified to fit with prebuilt httpd image
+request-header-saml-service-provider/openshift.conf.debug - renamed openshift.debug.conf to be easily added to container when needed with a set volume command
+request-header-saml-service-provider/run-httpd.sh - removed, unneeded when using prebuilt httpd image
+request-header-saml-service-provider/ssl.conf - removed, unneeded when using prebuilt httpd image
+
+nullifies PRs:
+#3 - bug 1316341 was resolved, suggest closing and can reopen if still seeing this problem
+#4 - stale health check, deprecated, replaced with something else
+#8 - Dockerfile changes not needed, deprecated
+#9 - Keycloak instruction changes not needed, deprecated
+
+
+
+
+50-update-ServerName.sh - updates the ServerName in the httpd.conf file in the prebuilt httpd image
+
+
+valley forge
+glance uploading image seems to have killed it
+openvswitch went bonkers
+restarted vswitch one controller at a time
+
+oc patch dc saml-auth -p '{"spec":{"template":{"spec":{"containers":[{"name":"saml-auth","image":"httpd-debug"}]}}}}'
+
+oc patch dc saml-auth -p '{"spec":{"triggers":[]}}'
+
+  triggers:
+  - imageChangeParams:
+      automatic: true
+      containerNames:
+      - saml-auth
+      from:
+        kind: ImageStreamTag
+        name: httpd:2.4
+        namespace: openshift
+      lastTriggeredImage: registry.access.redhat.com/rhscl/httpd-24-rhel7@sha256:105818bdeec6490dffbb0d1de97aff7fba7545a10c1583d02f62c374b185b8fd
+    type: ImageChange
+  - type: ConfigChange
+
+. Create a configMap to enable the Mellon Diagnostics module at load time
+
+  $ oc create cm mellon-diagnostics-module --from-file=11-auth_mellon-debug.conf
+
+. Add a volume mount to enable the Mellon Diagnostics module at load time
+
+  $ oc set volume dc/saml-auth --add --name=mellon-diagnostics-module --mount-path=/etc/httpd/conf.modules.d/11-auth_mellon-debug.conf --type=configmap --configmap-name=mellon-diagnostics-module
+
+. Create a configMap to set the Directives to enable Mellon Diagnostics
+
+  $ oc create cm mellon-diagnostics-directives --from-file=openshift.debug.conf
+
+. Add a volume mount to set the Directives to enable Mellon Diagnostics
+
+  $ oc set volume dc/saml-auth --add --name=mellon-diagnostics-directives --mount-path=/etc/httpd/conf.d/openshift.debug.conf --type=configmap --configmap-name=mellon-diagnostics-directives
+
+oc patch dc saml-auth -p '{"spec":{"template":{"spec":{"containers":[{"name":"saml-auth","image":"docker-registry.default.svc:5000/ocp-saml-proxy/httpd-debug"}]}}}}'
+
+
+
