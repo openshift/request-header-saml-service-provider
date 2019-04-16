@@ -15,7 +15,13 @@
                 apiVersion: v1
                 file: /etc/origin/master/htpasswd
                 kind: HTPasswdPasswordIdentityProvider
+    - name: Populate service facts
+      service_facts:
     - name: restart master-api
       service:
         name: atomic-openshift-master-api
         state: restarted
+      when: "'atomic-openshift-master-api' in services"
+    - name: restart master-api containerized
+      command: /usr/local/bin/master-restart api
+      when: "'atomic-openshift-master-api' not in services"

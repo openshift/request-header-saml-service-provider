@@ -135,14 +135,11 @@ OPENSHIFT_MASTER_PUBLIC_URL=https://openshift.ocp.example.com
 * `SAML_PROXY_FQDN` - This will be the FQDN to your SAML proxy (Apache mod\_auth\_mellon), typically something like `saml.apps.ocp.example.com`.
 * `SAML_OCP_PROJECT` - OpenShift project to store the SAML Proxy resources.
 * `OPENSHIFT_MASTER_PUBLIC_URL` - OpenShift masters public URL. This is the URL you access the OpenShift console on. If using a port other then 443 then include `:PORT` as part of the URL.
-* `ENTITY_ID` - An ID unique to your IdP. By convention this should resolve to your meta data file. In the case of the Apache Mellon container created by this project that would be `https://SAML_PROXY_FQDN/mellon/metadata`
-* `ENDPOINT_URL` - The end point of the Apache Mellon service which based on the template created in this project would be  `https://SAML_PROXY_FQDN/mellon`
 
 ## Create place to store SAML config files and clone required utitility projects
 ```sh
-mkdir ${SAML_CONFIG_DIR}
-cd /opt
-git clone https://github.com/openshift/request-header-saml-service-provider.git
+mkdir -p ${SAML_CONFIG_DIR}
+git clone ${GIT_REPO} ${SAML_UTILITY_PROJECTS_DIR} --branch ${GIT_BRANCH}
 ```
 
 ## Create OpenShift project
@@ -151,20 +148,21 @@ oc new-project ${SAML_OCP_PROJECT} --description='SAML proxy for RequestHeader a
 ```
 
 ## Generate SP SAML Metadata
+* `ENTITY_ID` - An ID unique to your IdP. By convention this should resolve to your meta data file. In the case of the Apache Mellon container created by this project that would be `https://SAML_PROXY_FQDN/mellon/metadata`
+* `ENDPOINT_URL` - The end point of the Apache Mellon service which based on the template created in this project would be  `https://SAML_PROXY_FQDN/mellon`
+
 ```sh
 # Note, Secrets cannot have key names with an 'underscore' in them, so when
 # creating metadata files with `mellon_create_metadata.sh` the resulting files
 # must be renamed appropriately.
-mellon_endpoint_url="{{ saml_auth_url }}/mellon"
+mellon_endpoint_url="${SAML_PROXY_URL}/mellon"
 mellon_entity_id="${mellon_endpoint_url}/metadata"
 file_prefix="$(echo "$mellon_entity_id" | sed 's/[^0-9A-Za-z.]/_/g' | sed 's/__*/_/g')"
-${SAML_UTILITY_PROJECTS_DIR}/mellon_create_metadata.sh $mellon_entity_id $mellon_endpoint_url
-mkdir ${SAML_UTILITY_PROJECTS_DIR}/saml-service-provider/saml2
-mv ${SAML_UTILITY_PROJECTS_DIR}/${file_prefix}.cert ${SAML_UTILITY_PROJECTS_DIR}/saml-service-provider/saml2/mellon.crt
-mv ${SAML_UTILITY_PROJECTS_DIR}/${file_prefix}.key ${SAML_UTILITY_PROJECTS_DIR}/saml-service-provider/saml2/mellon.key
-mv ${SAML_UTILITY_PROJECTS_DIR}/${file_prefix}.xml ${SAML_UTILITY_PROJECTS_DIR}/saml-service-provider/saml2/mellon-metadata.xml
-
-oc create cm httpd-saml2-config --from-file=${SAML_UTILITY_PROJECTS_DIR}/saml-service-provider/saml2 -n ${SAML_OCP_PROJECT}
+${SAML_UTILITY_PROJECTS_DIR}/saml-service-provider/mellon_create_metadata.sh $mellon_entity_id $mellon_endpoint_url
+mkdir ${SAML_CONFIG_DIR}/saml2
+mv ${file_prefix}.cert ${SAML_CONFIG_DIR}/saml2/mellon.crt
+mv ${file_prefix}.key ${SAML_CONFIG_DIR}/saml2/mellon.key
+mv ${file_prefix}.xml ${SAML_CONFIG_DIR}/saml2/mellon-metadata.xml
 ```
 
 Script from the mod_auth_mellon package containing the file `/usr/libexec/mod_auth_mellon/mellon_create_metadata.sh`, with documentation and instructions taken from:
@@ -188,13 +186,13 @@ Once recieved this file should be put in `./saml-service-provider/saml2/idp-meta
 
 ```
 # Pull your IdP Metadata as necessary and place it here
-curl -k -o ${SAML_UTILITY_PROJECTS_DIR}/saml-service-provider/saml2/idp-metadata.xml ${IDP_SAML_METADATA_URL}
+curl -k -o ${SAML_CONFIG_DIR}/saml2/idp-metadata.xml ${IDP_SAML_METADATA_URL}
 ```
 
 ## Configmap of SAML and IdP Metadata
 
 ```
-oc create cm httpd-saml2-config --from-file=${SAML_UTILITY_PROJECTS_DIR}/saml-service-provider/saml2 -n ${SAML_OCP_PROJECT}
+oc create cm httpd-saml2-config --from-file=${SAML_CONFIG_DIR}/saml2 -n ${SAML_OCP_PROJECT}
 ```
 
 ## Authentication certificate
@@ -209,18 +207,18 @@ as follows:
 ```sh
 oc adm create-api-client-config \
   --certificate-authority='/etc/origin/master/ca.crt' \
-  --client-dir='/etc/origin/master/proxy' \
+  --client-dir=${SAML_CONFIG_DIR} \
   --signer-cert='/etc/origin/master/ca.crt' \
   --signer-key='/etc/origin/master/ca.key' \
   --signer-serial='/etc/origin/master/ca.serial.txt' \
   --user='system:proxy'
 
-cat /etc/origin/master/proxy/system\:proxy.crt /etc/origin/master/proxy/system\:proxy.key > ${SAML_CONFIG_DIR}/httpd-ose-certs/authproxy.pem
-oc create secret generic httpd-ose-certs-secret --from-file=/etc/origin/master/proxy/authproxy.pem --from-file=/etc/origin/master/proxy/ca.crt -n ${SAML_OCP_PROJECT}
+cat ${SAML_CONFIG_DIR}/system\:proxy.crt ${SAML_CONFIG_DIR}/system\:proxy.key > ${SAML_CONFIG_DIR}/authproxy.pem
+oc create secret generic httpd-ose-certs-secret --from-file=${SAML_CONFIG_DIR}/authproxy.pem --from-file=/etc/origin/master/proxy/ca.crt -n ${SAML_OCP_PROJECT}
 ```
 
 ### Create SAML Proxy Client Certificates
-
+h
 The saml service provider pod will itself expose a TLS endpoint.  The OpenShift
 Router will use TLS passthrough to allow it to terminate the connection. 
 
@@ -228,21 +226,16 @@ __NOTE__: These instructions use the OCP CA to sign the cert. The other option i
 
 
 ```sh
-mkdir /etc/origin/master/httpd-server-certs
-
 oc adm ca create-server-cert \
   --signer-cert='/etc/origin/master/ca.crt' \
   --signer-key='/etc/origin/master/ca.key' \
   --signer-serial='/etc/origin/master/ca.serial.txt' \
   --hostnames=${SAML_PROXY_FQDN} \
-  --cert=./httpd-server-certs/server.crt \
-  --key=./httpd-server-certs/server.key
+  --cert=${SAML_CONFIG_DIR}/httpd.pem \
+  --key=${SAML_CONFIG_DIR}/httpd-key.pem
 
-mv /etc/origin/master/httpd-server-certs/{server.crt,httpd.pem}
-mv /etc/origin/master/httpd-server-certs/{server.key,httpd-key.pem}
-
-oc create secret generic httpd-server-cert-secret --from-file=/etc/origin/master/httpd-server-certs/httpd.pem -n ${SAML_OCP_PROJECT}
-oc create secret generic httpd-server-key-secret --from-file=/etc/origin/master/httpd-server-certs/httpd-key.pem -n ${SAML_OCP_PROJECT}
+oc create secret generic httpd-server-cert-secret --from-file=${SAML_CONFIG_DIR}/httpd.pem -n ${SAML_OCP_PROJECT}
+oc create secret generic httpd-server-key-secret --from-file=${SAML_CONFIG_DIR}/httpd-key.pem -n ${SAML_OCP_PROJECT}
 oc create secret generic httpd-server-ca-cert-secret --from-file=/etc/origin/master/ca.crt -n ${SAML_OCP_PROJECT}
 ```
 

@@ -16,3 +16,5 @@
 
 . Add health check page, since logout redirects back to login
 
+. Move all work on SAML-AUTH pods to the master-0 to store the proxy configs there, altogether.
+
