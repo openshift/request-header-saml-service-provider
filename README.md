@@ -47,15 +47,34 @@ SAML_OCP_PROJECT=ocp-saml-proxy
 OPENSHIFT_MASTER_PUBLIC_URL=https://openshift.ocp.example.com
 GIT_REPO=https://github.com/openshift/request-header-saml-service-provider
 GIT_BRANCH=master
-
+APPLICATION_DOMAIN=${SAML_PROXY_FQDN}
 APPLICATION_NAME=sso
 SSO_HOSTNAME=sso.apps.ocp.example.com
 SSO_URL=https://${SSO_HOSTNAME}
 SSO_ADMIN_USERNAME=admin
 SSO_ADMIN_PASSWORD=Pa55word1!
 SSO_REALM=ocp
-IDP_SAML_METADATA_URL=${SSO_URL}/auth/realms/${SSO_REALM}/protocol/saml/descriptor
+SSO_NAMESPACE=sso
 
+IDP_SAML_METADATA_URL=${SSO_URL}/auth/realms/${SSO_REALM}/protocol/saml/descriptor
+IDP_ADMIN_USER=admin
+IDP_ADMIN_PASSWORD=RedHat1!
+IDP_HOSTNAME=sso.apps.willow.lab.rdu2.cee.redhat.com
+IDP_URL=https://${IDP_HOSTNAME}
+IDP_APP_NAME=sso
+
+SSO_NAMESPACE=sso
+REMOTE_USER_SAML_ATTRIBUTE=id
+REMOTE_USER_NAME_SAML_ATTRIBUTE=name
+REMOTE_USER_EMAIL_SAML_ATTRIBUTE=email
+REMOTE_USER_PREFERRED_USERNAME=username
+
+OCP_REALM=ocp
+REALM_TEST_USER=test-user
+REALM_TEST_USER_PASSWORD=Pa55word1!
+REALM_TEST_USER_EMAIL=me@go.com
+REALM_TEST_USER_FIRSTNAME=Test
+REALM_TEST_USER_LASTNAME=User
 ```
 * `SAML_CONFIG_DIR` - directory to store all of your SAML configuration
 * `SAML_UTILITY_PROJECTS_DIR` - directory to check out required upstream projects
