@@ -11,8 +11,3 @@
         replace: "logoutPublicURL: '{{ saml_auth_url }}/mellon/logout?ReturnTo={{ saml_auth_url}}/login-ocp'"
     - name: apply updated configmap
       shell: oc apply -f webconsole-config.yaml -n openshift-web-console
-    - name: rollout latest webconsole
-      shell: |
-        oc scale deployment webconsole --replicas=0 -n openshift-web-console
-        sleep 5
-        oc scale deployment webconsole --replicas=3 -n openshift-web-console

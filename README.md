@@ -289,32 +289,32 @@ Create a new client by importing the ServiceProvider metadata that was output in
 
 When you login, you should be taken to the realm created automatically by the OpenShift Template.  You can verify it is labeled the same as your realm name chosen, on the left side of the UI.  
 
-Click on "Clients" on the left side of the window.
-Click on "Create" on the right side of the window.
-Click on "Select file" next to the "Import" field and select the mellon-metadata.xml produced by the script in the above steps.  You may need to copy this file over to your local machine from the master where you created it.
-Click "Save".
+* Click on "Clients" on the left side of the window.
+* Click on "Create" on the right side of the window.
+* Click on "Select file" next to the "Import" field and select the mellon-metadata.xml produced by the script in the above steps.  You may need to copy this file over to your local machine from the master where you created it.
+* Click "Save".
 
 
 ### Create Mappings
 
-From the Client you just created, click "Mappers" along the top tabs.  
-Click "Create". 
-Choose "Mapper Type" : "User Property". 
-Fill in the fields as shown for all four Mappers.
+* From the Client you just created, click "Mappers" along the top tabs.  
+* Click "Create". 
+* Choose "Mapper Type" : "User Property". 
+* Fill in the fields as shown for all four Mappers.
 
 ### Add a test user and set the user's password
 
-Click "Users" on the left side of the window.
-Click "Add user" on the right side of the window.
-Enter user details as needed.
-Click "Save".
+* Click "Users" on the left side of the window.
+* Click "Add user" on the right side of the window.
+* Enter user details as needed.
+* Click "Save".
 
 On the user entry you just created, click "Credentials" tab across the top of the window.
 Reset the user password, selecting "Temporary" = "Off".
 
 ### Create the client, mappings, and test user in a scripted fashion
 
-Note: DO NOT perform these steps if you performed the manual steps above.
+Notes: DO NOT perform these steps if you performed the manual steps above.  Also, you will need `jq` which is available in EPEL7.  
 
 Get an access token for the API, then make a call to convert the mellon-metadata.xml into an RH-SSO Client object.
 Finally, merge custom prewritten mappings into the Client object to make it ready to call the API create client function.
@@ -399,6 +399,8 @@ oauthConfig:
       nameHeaders:
       - X-Remote-User-Display-Name
       - Remote-User-Display-Name
+      - X-Remote-User-Name
+      - Remote-User-Name
       preferredUsernameHeaders:
       - X-Remote-User-Preferred-Username
       - Remote-User-Preferred-Username
@@ -414,6 +416,13 @@ assetConfig:
 
 Restart the master(s) at this point for the configuration to take effect.
 
+```
+atomic-openshift-master-api
+```
+
+```
+/usr/local/bin/master-restart api
+```
 
 ### Automate This:
 
@@ -425,6 +434,17 @@ $ ansible-playbook playbooks/install-oauth-on-master.yaml
 
 This is written ONLY for OCP 3.9 and above.  For lower, you need to update the assetConfig entries in the master-config.yaml.
 
+```
+oc export cm webconsole-config -n openshift-web-console -o yaml > webconsole-config.yaml
+```
+
+Be sure this value is set, with your variables expanded: 
+
+  logoutPublicURL: '${SAML_PROXY_URL}/mellon/logout?ReturnTo=${SAML_PROXY_URL}/login-ocp'
+
+oc export cm webconsole-config -n openshift-web-console -o yaml > webconsole-config.yaml
+
+oc apply -f webconsole-config.yaml -n openshift-web-console
 
 ### Automate This:
 
