@@ -47,6 +47,15 @@ SAML_OCP_PROJECT=ocp-saml-proxy
 OPENSHIFT_MASTER_PUBLIC_URL=https://openshift.ocp.example.com
 GIT_REPO=https://github.com/openshift/request-header-saml-service-provider
 GIT_BRANCH=master
+
+APPLICATION_NAME=sso
+SSO_HOSTNAME=sso.apps.ocp.example.com
+SSO_URL=https://${SSO_HOSTNAME}
+SSO_ADMIN_USERNAME=admin
+SSO_ADMIN_PASSWORD=Pa55word1!
+SSO_REALM=ocp
+IDP_SAML_METADATA_URL=${SSO_URL}/auth/realms/${SSO_REALM}/protocol/saml/descriptor
+
 ```
 * `SAML_CONFIG_DIR` - directory to store all of your SAML configuration
 * `SAML_UTILITY_PROJECTS_DIR` - directory to check out required upstream projects
@@ -234,7 +243,6 @@ oc create cm server-name-script --from-file ${SAML_UTILITY_PROJECTS_DIR}/saml-se
 ### Deploying SAML Proxy
 
 ```sh
-oc project ${SAML_OCP_PROJECT}
 oc process -f ${SAML_UTILITY_PROJECTS_DIR}/saml-auth-template.yml \
   -p=OPENSHIFT_MASTER_PUBLIC_URL=${OPENSHIFT_MASTER_PUBLIC_URL} \
   -p=PROXY_PATH=/oauth \
@@ -275,52 +283,82 @@ If you chose to install the RH-SSO IdP in the previous steps, you will need to c
 
 Note: because we are adding a configmap to the SSO deploymentconfig, a new instance rolls out with the update.  This in turn requires a configmap update to the saml-auth server.  When debugging, be sure both sides have the correct updates to all certificates.
 
-### Create an OpenShift Realm
+### Create the client in RH-SSO
 
-Create a new realm by importing the ServiceProvider metadata that was output in the previous steps.  
+Create a new client by importing the ServiceProvider metadata that was output in the previous steps.  
 
-To automate this step: 
+When you login, you should be taken to the realm created automatically by the OpenShift Template.  You can verify it is labeled the same as your realm name chosen, on the left side of the UI.  
+
+Click on "Clients" on the left side of the window.
+Click on "Create" on the right side of the window.
+Click on "Select file" next to the "Import" field and select the mellon-metadata.xml produced by the script in the above steps.  You may need to copy this file over to your local machine from the master where you created it.
+Click "Save".
+
+
+### Create Mappings
+
+From the Client you just created, click "Mappers" along the top tabs.  
+Click "Create". 
+Choose "Mapper Type" : "User Property". 
+Fill in the fields as shown for all four Mappers.
+
+### Add a test user and set the user's password
+
+Click "Users" on the left side of the window.
+Click "Add user" on the right side of the window.
+Enter user details as needed.
+Click "Save".
+
+On the user entry you just created, click "Credentials" tab across the top of the window.
+Reset the user password, selecting "Temporary" = "Off".
+
+### Create the client, mappings, and test user in a scripted fashion
+
+Note: DO NOT perform these steps if you performed the manual steps above.
+
+Get an access token for the API, then make a call to convert the mellon-metadata.xml into an RH-SSO Client object.
+Finally, merge custom prewritten mappings into the Client object to make it ready to call the API create client function.
 
 ```
 access_token=`curl -k -d "client_id=admin-cli" -d "username=${IDP_ADMIN_USER}" --data-urlencode "password=${IDP_ADMIN_PASSWORD}" -d "grant_type=password" "${IDP_URL}/auth/realms/master/protocol/openid-connect/token"| jq -r '.access_token'`
 curl -k -v \
     -H "Authorization: bearer $access_token" \
     -H "Content-Type: application/json;charset=utf-8" \
-    --data "@${SAML_UTILITY_PROJECTS_DIR}/saml-service-provider/saml2/mellon-metadata.xml" \
-    ${IDP_URL}/auth/admin/realms/${OCP_REALM}/client-description-converter > ${SAML_UTILITY_PROJECTS_DIR}/saml-service-provider/saml2/mellon-idp-client.json
-jq -s '.[0] * .[1]' ${SAML_UTILITY_PROJECTS_DIR}/saml-service-provider/saml2/mellon-idp-client.json ${SAML_UTILITY_PROJECTS_DIR}/rh-sso/idp-mappers.json > ${SAML_UTILITY_PROJECTS_DIR}/saml-service-provider/saml2/mellon-idp-client-with-mappers.json
+    --data "@${SAML_CONFIG_DIR}/saml2/mellon-metadata.xml" \
+    ${IDP_URL}/auth/admin/realms/${OCP_REALM}/client-description-converter > ${SAML_CONFIG_DIR}/saml2/mellon-idp-client.json
+jq -s '.[0] * .[1]' ${SAML_CONFIG_DIR}/saml2/mellon-idp-client.json ${SAML_UTILITY_PROJECTS_DIR}/rh-sso/idp-mappers.json > ${SAML_CONFIG_DIR}/saml2/mellon-idp-client-with-mappers.json
 ```
 
-### upload client json to config map
+Upload client json to config map, as we need to make the next calls from within the container:
 
 ```
-oc create cm mellon-rh-sso-client --from-file=${SAML_UTILITY_PROJECTS_DIR}/saml-service-provider/saml2/mellon-idp-client-with-mappers.json -n ${SAML_OCP_PROJECT}
+oc create cm mellon-rh-sso-client --from-file=${SAML_CONFIG_DIR}/saml2/mellon-idp-client-with-mappers.json -n ${SSO_NAMESPACE}
 ```
 
-### mount configmap volume
+Mount configmap volume:
 
 ```
-oc set volume dc/sso -n ${SAML_OCP_PROJECT} --add --name=mellon-rh-sso-client --mount-path=/mellon-client --type=configmap --configmap-name=mellon-rh-sso-client --overwrite
+oc set volume dc/sso -n ${SSO_NAMESPACE} --add --name=mellon-rh-sso-client --mount-path=/mellon-client --type=configmap --configmap-name=mellon-rh-sso-client --overwrite
 ```
 
-### Add a test user and set the user's password
+After waiting for the pod to restart from the above volume mount, execute these commands to run inside the container itself:
 
 ```
-POD_NAME=`oc get pods -n ${SAML_OCP_PROJECT} | grep -e "sso.*Running" | head -1 | awk '{print $1}'`
-        TRUSTSTORE_PASSWORD=`oc rsh -n ${SAML_OCP_PROJECT} $POD_NAME xmllint --xpath "string(/*[namespace-uri()='urn:jboss:domain:8.0' and local-name()='server']/*[namespace-uri()='urn:jboss:domain:8.0' and local-name()='profile']/*[namespace-uri()='urn:jboss:domain:keycloak-server:1.1' and local-name()='subsystem']/*[namespace-uri()='urn:jboss:domain:keycloak-server:1.1' and local-name()='spi' and @name='truststore']/*[namespace-uri()='urn:jboss:domain:keycloak-server:1.1' and local-name()='provider' and @name='file']/*[namespace-uri()='urn:jboss:domain:keycloak-server:1.1' and local-name()='properties']/*[local-name()='property' and @name='password']/@value)" /opt/eap/standalone/configuration/standalone-openshift.xml`
-        oc rsh -n ${SAML_OCP_PROJECT} $POD_NAME /opt/eap/bin/kcadm.sh config truststore --trustpass $TRUSTSTORE_PASSWORD /opt/eap/keystores/truststore.jks
-        oc rsh -n ${SAML_OCP_PROJECT} $POD_NAME /opt/eap/bin/kcadm.sh config credentials --server https://${IDP_APP_NAME}.${SSO_NAMESPACE}.svc:8443/auth --realm master --user ${IDP_ADMIN_USER} --password ${IDP_ADMIN_PASSWORD}
-        oc rsh -n ${SAML_OCP_PROJECT} $POD_NAME /opt/eap/bin/kcadm.sh create clients -r ${OCP_REALM} -f /mellon-client/mellon-idp-client-with-mappers.json
-        oc rsh -n ${SAML_OCP_PROJECT} $POD_NAME /opt/eap/bin/kcadm.sh create users -r ${OCP_REALM} -s username=${REALM_TEST_USER} -s enabled=true -s email=${REALM_TEST_USER_EMAIL} -s firstName=${REALM_TEST_USER_FIRSTNAME} -s lastName=${REALM_TEST_USER_LASTNAME} -o --fields id,username
-        oc rsh -n ${SAML_OCP_PROJECT} $POD_NAME /opt/eap/bin/kcadm.sh set-password -r ${OCP_REALM} --username ${REALM_TEST_USER} --new-password ${REALM_TEST_USER_PASSWORD}
+POD_NAME=`oc get pods -n ${SSO_NAMESPACE} | grep -e "sso.*Running" | head -1 | awk '{print $1}'`
+TRUSTSTORE_PASSWORD=`oc rsh -n ${SSO_NAMESPACE} $POD_NAME xmllint --xpath "string(/*[namespace-uri()='urn:jboss:domain:8.0' and local-name()='server']/*[namespace-uri()='urn:jboss:domain:8.0' and local-name()='profile']/*[namespace-uri()='urn:jboss:domain:keycloak-server:1.1' and local-name()='subsystem']/*[namespace-uri()='urn:jboss:domain:keycloak-server:1.1' and local-name()='spi' and @name='truststore']/*[namespace-uri()='urn:jboss:domain:keycloak-server:1.1' and local-name()='provider' and @name='file']/*[namespace-uri()='urn:jboss:domain:keycloak-server:1.1' and local-name()='properties']/*[local-name()='property' and @name='password']/@value)" /opt/eap/standalone/configuration/standalone-openshift.xml`
+oc rsh -n ${SSO_NAMESPACE} $POD_NAME /opt/eap/bin/kcadm.sh config truststore --trustpass $TRUSTSTORE_PASSWORD /opt/eap/keystores/truststore.jks
+oc rsh -n ${SSO_NAMESPACE} $POD_NAME /opt/eap/bin/kcadm.sh config credentials --server https://${IDP_APP_NAME}.${SSO_NAMESPACE}.svc:8443/auth --realm master --user ${IDP_ADMIN_USER} --password ${IDP_ADMIN_PASSWORD}
+oc rsh -n ${SSO_NAMESPACE} $POD_NAME /opt/eap/bin/kcadm.sh create clients -r ${OCP_REALM} -f /mellon-client/mellon-idp-client-with-mappers.json
+oc rsh -n ${SSO_NAMESPACE} $POD_NAME /opt/eap/bin/kcadm.sh create users -r ${OCP_REALM} -s username=${REALM_TEST_USER} -s enabled=true -s email=${REALM_TEST_USER_EMAIL} -s firstName=${REALM_TEST_USER_FIRSTNAME} -s lastName=${REALM_TEST_USER_LASTNAME} -o --fields id,username
+oc rsh -n ${SSO_NAMESPACE} $POD_NAME /opt/eap/bin/kcadm.sh set-password -r ${OCP_REALM} --username ${REALM_TEST_USER} --new-password ${REALM_TEST_USER_PASSWORD}
 ```
 
-### update configmap with new idp data (restart created new)
+Update configmap with new idp data (restart created new)
 
 ```
 curl -k -o ${SAML_CONFIG_DIR}/saml2/idp-metadata.xml ${IDP_SAML_METADATA_URL}
 oc delete cm httpd-saml2-config -n ${SAML_OCP_PROJECT}
-oc create cm httpd-saml2-config --from-file=${SAML_UTILITY_PROJECTS_DIR}/saml-service-provider/saml2 -n ${SAML_OCP_PROJECT}
+oc create cm httpd-saml2-config --from-file=${SAML_CONFIG_DIR}/saml2 -n ${SAML_OCP_PROJECT}
 oc rollout latest dc/saml-auth -n ${SAML_OCP_PROJECT}
 ```
 
