@@ -394,7 +394,9 @@ Note: because we are adding a configmap to the SSO deploymentconfig, a new insta
 
 This configures the OAuth OpenShift Provider to Proxy to your SAML Proxy provider, which in turn proxies to your IdP.  Be sure your RequestHeader fields used here match those in your saml-auth openshift.conf file.
 
-The following changes need to take place on the `/etc/origin/master/master-config.yaml` on all of our masters. You will need to do the string replacements yourself.
+The following changes need to take place on the `/etc/origin/master/master-config.yaml` on all masters. 
+
+You will need to do the string replacements yourself!
 
 ```yaml
 oauthConfig:
@@ -407,7 +409,7 @@ oauthConfig:
     provider:
       apiVersion: v1
       kind: RequestHeaderIdentityProvider
-      loginURL: "https://SAML_PROXY_FQDN/oauth/authorize?${query}"
+      loginURL: "https://${SAML_PROXY_FQDN}/oauth/authorize?${query}"
       clientCA: /etc/origin/master/ca.crt
       headers:
       - X-Remote-User
@@ -454,7 +456,7 @@ $ ansible-playbook playbooks/install-oauth-on-master.yaml
 This is written ONLY for OCP 3.9 and above.  For lower, you need to update the assetConfig entries in the master-config.yaml.
 
 ```
-oc export cm webconsole-config -n openshift-web-console -o yaml > webconsole-config.yaml
+oc get cm webconsole-config -n openshift-web-console -o yaml --export > webconsole-config.yaml
 ```
 
 Be sure this value is set, with your variables expanded: 
@@ -484,6 +486,8 @@ $ ansible-playbook playbooks/revert-oauth-on-master.yaml
 ## Clean up Resources
 
 ```
+rm -rf ${SAML_CONFIG_DIR}
+rm -rf ${SAML_UTILITY_PROJECTS_DIR}rm -rf ${SAML_UTILITY_PROJECTS_DIR}
 oc delete project ocp-saml-proxy
 oc delete project sso
 oc delete is redhat-sso73-openshift -n openshift
