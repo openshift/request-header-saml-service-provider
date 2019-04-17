@@ -1,13 +1,13 @@
 ---
-- name: Install HTTPD SAML proxy on OpenShift
+- name: Install the Apache Mellon Server on OpenShift
   hosts: localhost
   become: no
   tasks:
-    - name: New Project space
-      command: oc new-project {{ httpd_saml_namespace }}
-    - name: Create apache conf configmap
+    - name: Create the server project namespace
+      command: oc new-project {{ httpd_saml_namespace }} --description='SAML proxy for RequestHeader authentication to OpenShift. See https://github.com/openshift/request-header-saml-service-provider for more details.'
+    - name: Create Apache Conf ConfigMap
       command: oc create cm httpd-mellon-conf --from-file=../saml-service-provider/openshift.conf -n {{ httpd_saml_namespace }}
-    - name: Create certs
+    - name: Create ServiceProvider SAML Metadata
       shell: |
         mellon_endpoint_url="{{ saml_auth_url }}/mellon"
         mellon_entity_id="${mellon_endpoint_url}/metadata"
@@ -17,8 +17,9 @@
         mv ${file_prefix}.cert ../saml-service-provider/saml2/mellon.crt
         mv ${file_prefix}.key ../saml-service-provider/saml2/mellon.key
         mv ${file_prefix}.xml ../saml-service-provider/saml2/mellon-metadata.xml
-        curl -k -o ../saml-service-provider/saml2/idp-metadata.xml {{ idp_saml_metadata_url }}
-    - name: Create certificate configmaps
+    - name: Pull IdP Metadata
+      command: curl -k -o ../saml-service-provider/saml2/idp-metadata.xml {{ idp_saml_metadata_url }}
+    - name: ConfigMap of ServiceProvider and IdP Metadata
       command: oc create cm httpd-saml2-config --from-file=../saml-service-provider/saml2 -n {{ httpd_saml_namespace }}
 - name: Install HTTPD SAML proxy certs from Master
   hosts: master-0
@@ -53,9 +54,9 @@
   hosts: localhost
   become: no
   tasks:
-    - name: Create ServerName configmap
+    - name: Create ServerName ConfigMap
       command: oc create cm server-name-script --from-file ../saml-service-provider/50-update-ServerName.sh -n {{ httpd_saml_namespace }}
-    - name: Run template install
+    - name: Deploying SAML Proxy
       shell: | 
         oc process -f ../saml-auth-template.yml \
           -p=OPENSHIFT_MASTER_PUBLIC_URL={{ ocp_url }} \ 

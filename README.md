@@ -1,123 +1,36 @@
 # request-header-saml-service-provider
 
-This project sets up OpenShift [Request header](https://docs.openshift.com/container-platform/3.11/install_config/configuring_authentication.html#RequestHeaderIdentityProvider) authentication between a SAML IdP and OpenShift with mod_auth_mellon acting as a SAML Proxy.  There are Ansible playbooks available to roll the installs automatically, but be aware they are not resilient and you may need to modify them to work with your own environment.  Contributions and improvements are always welcome.  The playbook uses RH-SSO, built upon Keycloak, as an example IdP.  It would be great to spin up a test cluster just to practice these steps and understand how everything works, prior to attempting to integrate with another IdP.  The playbooks expect a minimal cluster install with the basic HTPasswd provider.  
-
-The high level communication flow that is created by implementing this solution is:
-1. OCP Console
-2. SAML Proxy SP (this project)
-3. Your SAML IdP
-4. SAML Proxy SP (this project)
-5. OCP oAuth
-6. OCP console
-
-# Outline
-* [Outline](#outline)
+## Outline
 * [Authentication not Authorization](#authentication-not-authorization)
 * [OpenShift Instructions](#openshift-instructions)
 * [Debuging](#debuging)
 * [Apendex](#apendex) 
 
-# Authentication not Authorization
+## Introduction
+
+This project sets up OpenShift [Request header](https://docs.openshift.com/container-platform/3.11/install_config/configuring_authentication.html#RequestHeaderIdentityProvider) authentication between a SAML IdP and OpenShift with mod_auth_mellon acting as a SAML Proxy.  There are Ansible playbooks available to roll the installs automatically, but be aware they are not resilient and you may need to modify them to work with your own environment.  Contributions and improvements are always welcome.  The playbook uses RH-SSO, built upon Keycloak, as an example IdP.  It would be great to spin up a test cluster just to practice these steps and understand how everything works, prior to attempting to integrate with another IdP.  The playbooks expect a minimal cluster install with the basic HTPasswd provider.
+
+The high level communication flow that is created by implementing this solution is:
+1. OCP Console
+2. SAML Proxy SP
+3. Your SAML IdP
+4. SAML Proxy SP
+5. OCP oAuth
+6. OCP console
+
+### Authentication not Authorization
 
 This solution will implement SAML-based authentication for your OpenShift cluster. For authorization, the most common solution is [Syncing groups With LDAP](https://docs.openshift.com/container-platform/3.11/install_config/syncing_groups_with_ldap.html) and ensuring the `user` identity provided by your SAML IdP matches the user's identity in your LDAP.
 
-# Proxy
+### Proxy
 
 This proxy is a solution to proxy ONLY the OAuth login endpoint.  We do not recommend you proxy all content requested by either the Master API or the Web Console.  That would not be a good idea because the proxy likely cannot pass all request types through correctly (websockets, SPDY).  The OpenShift OAuth provider should alone be responsible for the security of the platform.
 
-# Ansible Automated Installs
+### Ansible Automated Installs
 
 WARNING: Be sure to run this only on test environments with NO tenants!!  This is not production ready and will probably require manual adjustments based on your environment and implementation.
 
-## Set up your Inventory
-
-We recommend you setup your inventory based on the example provided and update the username, password, and URL fields as you need.  You may also want to provide an ``ansible.cfg`` file as well.  The ``inventory`` and ``ansible.cfg`` files are currently ignored by git.  
-
-```
-$ mv inventory.example inventory
-```
-
-Login to your OpenShift Client with a cluster-admin user
-
-```
-$ oc login https://openshift.ocp.example.com:443
-```
-
-## Install the IdP
-
-This creates an instance of RH-SSO based off the 7.3 template, with no persistent volume.  This is for testing use only and none of your configuration will persist.  If your pod crashes or you destroy the pod, your certificates will be different and you will need to make adjustments to your work on the saml-auth server.  In this event, we recommend deleting everything, as in the "Clean Up" section below, and starting over.  If you already have an IdP, you could skip this step, but it might provide useful as an exercise for your understanding of how the SAML mappings work.
-
-```
-$ ansible-playbook playbooks/install-rh-sso.yaml
-```
-
-## Install the Apache Mellon Server
-
-This creates an instance of an Apache HTTPD server with mod_auth_mellon installed, based off the current httpd24 image provided by the Red Hat Container Catalog.  If you need to debug your server, you can follow further steps in the ``saml-service-provider/debug`` folder.
-
-```
-$ ansible-playbook playbooks/install-saml-auth.yaml
-```
-
-## Install the Client on the IdP
-
-If you chose to install the RH-SSO IdP in the previous steps, you will need to configure the saml-auth Client for the corresponding authentication Realm.  This also installs a test-user account in the realm.  
-
-```
-$ ansible-playbook playbooks/install-rh-sso-client.yaml
-```
-
-Note: because we are adding a configmap to the SSO deploymentconfig, a new instance rolls out with the update.  This in turn requires a configmap update to the saml-auth server.  When debugging, be sure both sides have the correct updates to all certificates.  
-
-## Update the Master API Configuration
-
-This configures the OAuth OpenShift Provider to Proxy to your SAML Proxy provider, which in turn proxies to your IdP.  Be sure your RequestHeader fields used here match those in your saml-auth openshift.conf file.  
-
-```
-$ ansible-playbook playbooks/install-oauth-on-master.yaml
-```
-
-## Update the Web Console Logout
-
-This is written ONLY for OCP 3.9 and above.  For lower, you need to update the assetConfig entries in the master-config.yaml.  
-
-```
-$ ansible-playbook playbooks/update-webconsole-cm.yaml 
-```
-
-## Revert the Master API Configuration
-
-Use this in the event you need to rollback to the HTPasswd provider.
-
-```
-$ ansible-playbook playbooks/revert-oauth-on-master.yaml
-```
-
-## Clean up Resources
-
-```
-oc delete project ocp-saml-proxy
-oc delete project sso
-oc delete is redhat-sso73-openshift -n openshift
-oc delete user test-user
-oc delete identity `oc get identities | grep test-user | awk '{print $1}'`
-```
-
-Note: this does not revert changes on your web console config.
-
-# Manual Instructions
-The deployment of this pod involves loading a template and using it to create a
-new application.  This running pod will mount in secrets for all custom
-configuration.
-
-## Setup
-Manual setup steps to do ahead of time to make the rest of this go a lot smoother.
-
-### Request your IdP Metadata
-Skip to step [Get your IdP Provided metadata](#get-your-idp-provided-metadata) and request your IdP metadata now so you will have it by the time you need it.
-
-### Log into first master and SUDO to root
-All of this will be done on your first OpenShift master. While doing work directly on an OpenShift master is typically discouraged, you need access to files that live on the first master to complete this procedure, you will also need to be root, or be able to sudo to root, to access the required files.
+## Set up your Environment
 
 ### Set up environment variables
 
@@ -139,18 +52,103 @@ GIT_BRANCH=master
 * `SAML_OCP_PROJECT` - OpenShift project to store the SAML Proxy resources.
 * `OPENSHIFT_MASTER_PUBLIC_URL` - OpenShift masters public URL. This is the URL you access the OpenShift console on. If using a port other then 443 then include `:PORT` as part of the URL.
 
-## Create place to store SAML config files and clone required utitility projects
+### Create place to store SAML config files and clone required utitility projects
 ```sh
 mkdir -p ${SAML_CONFIG_DIR}
 git clone ${GIT_REPO} ${SAML_UTILITY_PROJECTS_DIR} --branch ${GIT_BRANCH}
 ```
 
-## Create OpenShift project
+### Log into first master and SUDO to root
+All of this will be done on your first OpenShift master. While doing work directly on an OpenShift master is typically discouraged, you need access to files that live on the first master to complete this procedure, you will also need to be root, or be able to sudo to root, to access the required files.
+
+### Set up Ansible Inventory for Automation
+
+We recommend you setup your inventory based on the example provided and update the username, password, and URL fields as you need.  You may also want to provide an ``ansible.cfg`` file as well.  The ``inventory`` and ``ansible.cfg`` files are currently ignored by git.  
+
+```
+$ mv inventory.example inventory
+```
+
+Login to your OpenShift Client with a cluster-admin user
+
+```
+$ oc login https://openshift.ocp.example.com:443
+```
+
+## Install the IdP
+
+This creates an instance of RH-SSO based off the 7.3 template, with no persistent volume.  This is for testing use only and none of your configuration will persist.  If your pod crashes or you destroy the pod, your certificates will be different and you will need to make adjustments to your work on the saml-auth server.  In this event, we recommend deleting everything, as in the "Clean Up" section below, and starting over.  If you already have an IdP, you could skip this step, but it might provide useful as an exercise for your understanding of how the SAML mappings work.
+
+### Install RH-SSO on OpenShift
+
+If you would like something to test against before integrating directly with your IdP, try using RH-SSO, which is based on upstream Keycloak.
+
+1. Create project namespace
+
+```
+# oc new-project sso
+```
+
+2. Run template install
+
+```
+# oc process -f ${SAML_UTILITY_PROJECTS_DIR}/rh-sso/sso73-x509-https.yaml \
+        -p=APPLICATION_NAME=${APPLICATION_NAME} \
+        -p=SSO_HOSTNAME=${SSO_HOSTNAME} \
+        -p=SSO_ADMIN_USERNAME=${SSO_ADMIN_USERNAME} \
+        -p=SSO_ADMIN_PASSWORD=${SSO_ADMIN_PASSWORD} \
+        -p=SSO_REALM=${SSO_REALM} \
+        | oc create -f-
+```
+
+Note that there is no persistent database backing this template.  This is for test purposes only and a pod restart will clear the app configuration.
+
+### Automate this:
+
+```
+$ ansible-playbook playbooks/install-rh-sso.yaml
+```
+
+## Get your IdP Provided metadata
+Your IdP administrator must provide you with your IdP metadata XML file. Information they will request from you will include but not necessarily be limited to:
+
+* Your `ENTITY_ID` - This is determined in [Set up environment variables](#set-up-environment-variables)
+* Single Sign-On Service URL: https://SAML_PROXY_FQDN/mellon/postResponse
+* Single Logout Service URL: https://SAML_PROXY_FQDN/mellon/logout
+* Required attributes - The attributes to be provided by the IdP to the SP
+  * `user` - Required. The unique user ID for the authenticating user. This should align with the LDAP server you plan to use for authorization, AKA [LDAP group sync](https://docs.openshift.com/container-platform/3.11/install_config/syncing_groups_with_ldap.html).
+  * `name` - Optional. Human full name of the user. This is used for display purposes in the UI.
+  * `email` - Optional. E-mail address of the user.
+  * `preferred_username` - Optional. Preferred user name, if different than the immutable identity determined from the headers specified in headers.
+
+Once recieved this file should be put in `./saml-service-provider/saml2/idp-metadata.xml`
+
+```
+# Pull your IdP Metadata as necessary and place it here
+curl -k -o ${SAML_CONFIG_DIR}/saml2/idp-metadata.xml ${IDP_SAML_METADATA_URL}
+```
+
+
+## Install the Apache Mellon Server on OpenShift
+
+This creates an instance of an Apache HTTPD server with mod_auth_mellon installed, based off the current httpd24 image provided by the Red Hat Container Catalog.  If you need to debug your server, you can follow further steps in the ``saml-service-provider/debug`` folder.
+
+1. Create the server project namespace
+
 ```sh
 oc new-project ${SAML_OCP_PROJECT} --description='SAML proxy for RequestHeader authentication to OpenShift. See https://github.com/openshift/request-header-saml-service-provider for more details.'
 ```
 
-## Generate SP SAML Metadata
+2. Create Apache Conf ConfigMap
+
+Mount your Mellon Specific apache settings.
+
+```
+oc create cm httpd-mellon-conf --from-file=${SAML_UTILITY_PROJECTS_DIR}/saml-service-provider/openshift.conf -n ${SAML_OCP_PROJECT}
+```
+
+3. Create ServiceProvider SAML Metadata
+
 * `ENTITY_ID` - An ID unique to your IdP. By convention this should resolve to your meta data file. In the case of the Apache Mellon container created by this project that would be `https://SAML_PROXY_FQDN/mellon/metadata`
 * `ENDPOINT_URL` - The end point of the Apache Mellon service which based on the template created in this project would be  `https://SAML_PROXY_FQDN/mellon`
 
@@ -172,54 +170,19 @@ Script from the mod_auth_mellon package containing the file `/usr/libexec/mod_au
 - https://access.redhat.com/documentation/en-us/red_hat_single_sign-on/7.3/html-single/securing_applications_and_services_guide/#configuring_mod_auth_mellon_with_red_hat_single_sign_on
 - https://www.keycloak.org/docs/latest/securing_apps/index.html#configuring-mod_auth_mellon-with-keycloak
 
-
-## Get your IdP Provided metadata
-Your IdP administrator must provide you with your IdP metadata XML file. Information they will request from you will include but not necessarily be limited to:
-
-* Your `ENTITY_ID` - This is determined in [Set up environment variables](#set-up-environment-variables)
-* Single Sign-On Service URL: https://SAML_PROXY_FQDN/mellon/postResponse
-* Single Logout Service URL: https://SAML_PROXY_FQDN/mellon/logout
-* Required attributes - The attributes to be provided by the IdP to the SP
-  * `user` - Required. The unique user ID for the authenticating user. This should align with the LDAP server you plan to use for authorization, AKA [LDAP group sync](https://docs.openshift.com/container-platform/3.11/install_config/syncing_groups_with_ldap.html).
-  * `name` - Optional. Human full name of the user. This is used for display purposes in the UI.
-  * `email` - Optional. E-mail address of the user.
-  * `preferred_username` - Optional. Preferred user name, if different than the immutable identity determined from the headers specified in headers.
-
-Once recieved this file should be put in `./saml-service-provider/saml2/idp-metadata.xml`
+4. Pull IdP Metadata
 
 ```
-# Pull your IdP Metadata as necessary and place it here
 curl -k -o ${SAML_CONFIG_DIR}/saml2/idp-metadata.xml ${IDP_SAML_METADATA_URL}
 ```
 
-## Deploy a test RH-SSO IdP Instance
-
-If you would like something to test against before integrating directly with your IdP, try using RH-SSO, which is based on upstream Keycloak.  
-
-```
-# oc new-project sso
-
-# oc process -f ${SAML_UTILITY_PROJECTS_DIR}/rh-sso/sso73-x509-https.yaml \
-        -p=APPLICATION_NAME=${APPLICATION_NAME} \
-        -p=SSO_HOSTNAME=${SSO_HOSTNAME} \
-        -p=SSO_ADMIN_USERNAME=${SSO_ADMIN_USERNAME} \
-        -p=SSO_ADMIN_PASSWORD=${SSO_ADMIN_PASSWORD} \
-        -p=SSO_REALM=${SSO_REALM} \
-        | oc create -f-
-```
-
-Note that there is no persistent database backing this template.  This is for test purposes only and a pod restart will clear the app configuration.
-
-## Configmap of SAML and IdP Metadata
+5. ConfigMap of ServiceProvider and IdP Metadata
 
 ```
 oc create cm httpd-saml2-config --from-file=${SAML_CONFIG_DIR}/saml2 -n ${SAML_OCP_PROJECT}
 ```
 
-## Authentication certificate
-Create the necessary certifcates for two way TLS communication between OpenShift oAuth and the SAML Proxy.
-
-### Create OCP API Client Certficates
+6. Create OCP API Client Certficates
 
 This certifcate is used by the saml service provider pod to make a secure
 request to the Master.  Using all the defaults, a suitable file can be created
@@ -238,10 +201,10 @@ cat ${SAML_CONFIG_DIR}/system\:proxy.crt ${SAML_CONFIG_DIR}/system\:proxy.key > 
 oc create secret generic httpd-ose-certs-secret --from-file=${SAML_CONFIG_DIR}/authproxy.pem --from-file=/etc/origin/master/proxy/ca.crt -n ${SAML_OCP_PROJECT}
 ```
 
-### Create SAML Proxy Client Certificates
-h
+7. Create SAML Proxy Client Certificates
+
 The saml service provider pod will itself expose a TLS endpoint.  The OpenShift
-Router will use TLS passthrough to allow it to terminate the connection. 
+Router will use TLS passthrough to allow it to terminate the connection.
 
 __NOTE__: These instructions use the OCP CA to sign the cert. The other option is to get your own signed certificate. It is recomended you get an organizationally trusted CA to sign this certifcate for production use, otherwise users will see their browsers prompting them to accept this certificate when they try to log in via SAML.
 
@@ -260,7 +223,7 @@ oc create secret generic httpd-server-key-secret --from-file=${SAML_CONFIG_DIR}/
 oc create secret generic httpd-server-ca-cert-secret --from-file=/etc/origin/master/ca.crt -n ${SAML_OCP_PROJECT}
 ```
 
-### Create ServerName ConfigMap
+8. Create ServerName ConfigMap
 
 This replaces the ServerName field with your defined FQDN and port from an environment variable.
 
@@ -268,26 +231,8 @@ This replaces the ServerName field with your defined FQDN and port from an envir
 oc create cm server-name-script --from-file ${SAML_UTILITY_PROJECTS_DIR}/saml-service-provider/50-update-ServerName.sh -n ${SAML_OCP_PROJECT}
 ```
 
-### Create Apache ConfigMap
+9. Deploying SAML Proxy
 
-Mount your Mellon Specific apache settings.
-
-```
-ec create cm httpd-mellon-conf --from-file=${SAML_UTILITY_PROJECTS_DIR}/saml-service-provider/openshift.conf -n ${SAML_OCP_PROJECT}
-```
-
-#### Making changes to secrets
-It's likely you will need to update the value of some secrets.  To do this
-simply delete the secret and recreate it.  Then trigger a new deployment.
-
-```sh
-oc project ${SAML_OCP_PROJECT}
-oc delete secret <secret name>
-oc create secret generic <secret name> --from-file=<path>
-oc rollout latest saml-auth
-```
-
-## Deploying SAML Proxy
 ```sh
 oc project ${SAML_OCP_PROJECT}
 oc process -f ${SAML_UTILITY_PROJECTS_DIR}/saml-auth-template.yml \
@@ -308,7 +253,28 @@ The template defines replicas as 1.  This pod can be scaled to multiple replicas
 oc scale --replicas=2 dc saml-auth
 ```
 
-## Configure your RH-SSO IdP
+### Test SAML Proxy
+At this point you should be able to download your SP client metadata from the Apache mod_auth_mellon server.
+
+1. In your browser go to: https://${SAML_PROXY_FQDN}/mellon/metadata
+2. Verify your `mellon-metadata.xml` downloads
+
+
+### Automate This:
+
+```
+$ ansible-playbook playbooks/install-saml-auth.yaml
+```
+
+
+## Install SAML ServiceProvider Client on RH-SSO IdP
+
+If you chose to install the RH-SSO IdP in the previous steps, you will need to configure the saml-auth Client for the corresponding authentication Realm.  This also installs a test-user account in the realm.
+
+Note: because we are adding a configmap to the SSO deploymentconfig, a new instance rolls out with the update.  This in turn requires a configmap update to the saml-auth server.  When debugging, be sure both sides have the correct updates to all certificates.
+
+
+### Configure your RH-SSO IdP
 
 1. Create an OpenShift Realm
 
@@ -355,16 +321,23 @@ POD_NAME=`oc get pods -n {{ sso_namespace }} | grep -e "sso.*Running" | head -1 
 
 ```
 curl -k -o ../saml-service-provider/saml2/idp-metadata.xml {{ idp_saml_metadata_url }}
-        oc delete cm httpd-saml2-config -n {{ httpd_saml_namespace }}
-        oc create cm httpd-saml2-config --from-file=../saml-service-provider/saml2 -n {{ httpd_saml_namespace }}
-        oc rollout latest dc/saml-auth -n {{ httpd_saml_namespace }}
+oc delete cm httpd-saml2-config -n {{ httpd_saml_namespace }}
+oc create cm httpd-saml2-config --from-file=../saml-service-provider/saml2 -n {{ httpd_saml_namespace }}
+oc rollout latest dc/saml-auth -n {{ httpd_saml_namespace }}
 ```
 
-## Test SAML Proxy
-At this point you should be able to download your SP client metadata from the Apache mod_auth_mellon server.
+Automate This:
+```
+$ ansible-playbook playbooks/install-rh-sso-client.yaml
+```
 
-1. In your browser go to: https://${SAML_PROXY_FQDN}/mellon/metadata
-2. Verify your `mellon-metadata.xml` downloads
+Note: because we are adding a configmap to the SSO deploymentconfig, a new instance rolls out with the update.  This in turn requires a configmap update to the saml-auth server.  When debugging, be sure both sides have the correct updates to all certificates.
+
+
+## Update the Master API Configuration
+
+This configures the OAuth OpenShift Provider to Proxy to your SAML Proxy provider, which in turn proxies to your IdP.  Be sure your RequestHeader fields used here match those in your saml-auth openshift.conf file.
+
 
 ## OpenShift master configuration changes
 
@@ -406,20 +379,73 @@ assetConfig:
 
 Restart the master(s) at this point for the configuration to take effect.
 
+
+Automate This:
+
+```
+$ ansible-playbook playbooks/install-oauth-on-master.yaml
+```
+
+## Update the Web Console Logout
+
+This is written ONLY for OCP 3.9 and above.  For lower, you need to update the assetConfig entries in the master-config.yaml.
+
+```
+$ ansible-playbook playbooks/update-webconsole-cm.yaml
+```
+
+
+
 # Debuging
 
+## Revert the Master API Configuration
+
+Use this in the event you need to rollback to the HTPasswd provider.
+
+```
+$ ansible-playbook playbooks/revert-oauth-on-master.yaml
+```
+
+## Clean up Resources
+
+```
+oc delete project ocp-saml-proxy
+oc delete project sso
+oc delete is redhat-sso73-openshift -n openshift
+oc delete user test-user
+oc delete identity `oc get identities | grep test-user | awk '{print $1}'`
+```
+
+Note: this does not revert changes on your web console config.
+
+
+## Making changes to secrets
+
+It's likely you will need to update the value of some secrets.  To do this
+simply delete the secret and recreate it.  Then trigger a new deployment.
+
+```sh
+oc project ${SAML_OCP_PROJECT}
+oc delete secret <secret name>
+oc create secret generic <secret name> --from-file=<path>
+oc rollout latest saml-auth
+```
+
+
 ## Using the debug image
+
 This project builds the base deployment from the Red Hat supported httpd24 image found in the Red Hat Container Catalog.  It also provides a helpful, but custom, debug image if needed.  Please see the ``saml-service-provider/debug/README.adoc`` for more instructions on using it. It is very important to note this debug image should only be used during debuging and should not be used when going live in "production".
 
 The debug image enables `mod_auth_mellon-diagnostics` and `mod_dumpio` both of which reduce performance and output security senstive logs you would not normally want in a production setting.
 
 To use the debug image:
+
 ```sh
 oc project ${SAML_OCP_PROJECT}
 oc set triggers dc/saml-auth --containers=saml-auth --from-image=httpd-debug:latest 
 ```
 
-To go back to the production image:
+To go back to the non-debug image:
 ```sh
 oc project ${SAML_OCP_PROJECT}
 oc set triggers dc/saml-auth --containers=saml-auth --from-image=openshift/httpd:latest 
