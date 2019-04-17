@@ -19,7 +19,7 @@
         mv ${file_prefix}.xml ../saml-service-provider/saml2/mellon-metadata.xml
     - name: Pull IdP Metadata
       command: curl -k -o ../saml-service-provider/saml2/idp-metadata.xml {{ idp_saml_metadata_url }}
-    - name: ConfigMap of ServiceProvider and IdP Metadata
+    - name: Create ConfigMap of ServiceProvider and IdP Metadata
       command: oc create cm httpd-saml2-config --from-file=../saml-service-provider/saml2 -n {{ httpd_saml_namespace }}
 - name: Install HTTPD SAML proxy certs from Master
   hosts: master-0
