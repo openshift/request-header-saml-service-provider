@@ -28,7 +28,7 @@ This solution will implement SAML-based authentication for your OpenShift cluste
 
 ### Proxy
 
-This proxy is a solution to proxy ONLY the OAuth login endpoint.  We do not recommend you proxy all content requested by either the Master API or the Web Console.  That would not be a good idea because the proxy likely cannot pass all request types through correctly (websockets, SPDY).  The OpenShift OAuth provider should alone be responsible for the security of the platform.
+This proxy is a solution to proxy ONLY the OpenShift OAuth login endpoint.  We do not recommend you proxy all OpenShift content requested from either the Master API or the Web Console.  That would not be a good idea because the proxy likely cannot pass all request types through correctly (websockets, SPDY).  The OpenShift OAuth provider should alone be responsible for the security of the platform.
 
 ### Ansible Automated Installs
 
@@ -40,6 +40,7 @@ WARNING: Be sure to run this only on test environments with NO tenants!!  This i
 
 Setting these now will make running future steps much more of just a copy/paste exercise rather than more manual fill in the blank.
 
+For the SAML Proxy:
 ```sh
 SAML_CONFIG_DIR=/etc/origin/master/proxy
 SAML_UTILITY_PROJECTS_DIR=/opt/request-header-saml-service-provider
@@ -50,6 +51,19 @@ OPENSHIFT_MASTER_PUBLIC_URL=https://openshift.ocp.example.com
 GIT_REPO=https://github.com/openshift/request-header-saml-service-provider
 GIT_BRANCH=master
 APPLICATION_DOMAIN=${SAML_PROXY_FQDN}
+```
+
+* `SAML_CONFIG_DIR` - directory to store all of your SAML configuration
+* `SAML_UTILITY_PROJECTS_DIR` - directory to check out required upstream projects
+* `SAML_PROXY_FQDN` - This will be the FQDN to your SAML proxy (Apache mod\_auth\_mellon), typically something like `saml.apps.ocp.example.com`.
+* `SAML_PROXY_URL` - Derived from the above.  Do not edit.
+* `SAML_OCP_PROJECT` - OpenShift project to store the SAML Proxy resources.
+* `OPENSHIFT_MASTER_PUBLIC_URL` - OpenShift masters public URL. This is the URL you access the OpenShift console on. If using a port other than 443 then include `:PORT` as part of the URL.
+* `GIT_REPO` - The git repo for this project
+* `GIT_BRANCH` - The git branch you would like to check out.
+
+For the test IdP RH-SSO:
+```
 APPLICATION_NAME=sso
 SSO_HOSTNAME=sso.apps.ocp.example.com
 SSO_URL=https://${SSO_HOSTNAME}
@@ -78,23 +92,19 @@ REALM_TEST_USER_EMAIL=me@go.com
 REALM_TEST_USER_FIRSTNAME=Test
 REALM_TEST_USER_LASTNAME=User
 ```
-* `SAML_CONFIG_DIR` - directory to store all of your SAML configuration
-* `SAML_UTILITY_PROJECTS_DIR` - directory to check out required upstream projects
-* `SAML_PROXY_FQDN` - This will be the FQDN to your SAML proxy (Apache mod\_auth\_mellon), typically something like `saml.apps.ocp.example.com`.
-* `SAML_PROXY_URL` - Derived from the above.  Do not edit.
-* `SAML_OCP_PROJECT` - OpenShift project to store the SAML Proxy resources.
-* `OPENSHIFT_MASTER_PUBLIC_URL` - OpenShift masters public URL. This is the URL you access the OpenShift console on. If using a port other than 443 then include `:PORT` as part of the URL.
-* `GIT_REPO` - The git repo for this project
-* `GIT_BRANCH` - The git branch you would like to check out.
 
 ### Create place to store SAML config files and clone required utitility projects
+
 ```sh
 mkdir -p ${SAML_CONFIG_DIR}
 git clone ${GIT_REPO} ${SAML_UTILITY_PROJECTS_DIR} --branch ${GIT_BRANCH}
 ```
 
 ### Log into first master and SUDO to root
-All of this will be done on your first OpenShift master. While doing work directly on an OpenShift master is typically discouraged, you need access to files that live on the first master to complete this procedure, you will also need to be root, or be able to sudo to root, to access the required files.
+
+All of this will be done on your first OpenShift master. While doing work directly on an OpenShift master is typically discouraged, you need access to files that live on the first master to complete this procedure, you will also need to be root, or be able to sudo to root, to access the required files. 
+
+If you choose to run the Ansible playbooks, you do not need to be logged in to the OpenShift master,  but your Ansible configuration should be setup to gain access to it.
 
 ### Set up Ansible Inventory for Automation
 
@@ -114,7 +124,7 @@ $ oc login https://openshift.ocp.example.com:443
 
 ### Get your IdP Provided metadata
 
-Your IdP administrator must provide you with your IdP metadata XML file. Information they will request from you will include but not necessarily be limited to:
+If you are not using the test IdP in this project, your IdP administrator must provide you with your IdP metadata XML file. Information they will request from you will include but not necessarily be limited to:
 
 * Your `ENTITY_ID`: the location of your metadata output
 * Single Sign-On Service URL: https://SAML_PROXY_FQDN/mellon/postResponse
@@ -160,7 +170,7 @@ $ ansible-playbook playbooks/install-rh-sso.yaml
 
 ## Install the Apache Mellon Server on OpenShift
 
-This creates an instance of an Apache HTTPD server with mod_auth_mellon installed, based off the current httpd24 image provided by the Red Hat Container Catalog.  If you need to debug your server, you can follow further steps in the ``saml-service-provider/debug`` folder.
+This creates an instance of an Apache HTTPD server with mod_auth_mellon installed, based off the current httpd24 image provided by the Red Hat Container Catalog.  If you need to debug your server, you can follow further steps in the `saml-service-provider/debug` folder.
 
 ### Create the server project namespace
 
@@ -170,13 +180,15 @@ oc new-project ${SAML_OCP_PROJECT} --description='SAML proxy for RequestHeader a
 
 ### Create Apache Conf ConfigMap
 
-Mount your Mellon Specific apache settings.
+Mount your Mellon Specific apache settings.  If you need to further customize your apache configuration, you can update this ``openshift.conf`` file.  You may wish to use different RequestHeader names or provide additional configuration tweaks.  
 
 ```
 oc create cm httpd-mellon-conf --from-file=${SAML_UTILITY_PROJECTS_DIR}/saml-service-provider/openshift.conf -n ${SAML_OCP_PROJECT}
 ```
 
 ### Create ServiceProvider SAML Metadata
+
+This script generates metadata XML for your ServiceProvider, which is used by the Mellon library and is configured in your `openshift.conf` file.  You do not have to use the certificates generated here, but the generated XML outputs will give you an example of how to form your XMLdata and add your own certificates.
 
 ```sh
 # Note, Secrets cannot have key names with an 'underscore' in them, so when
@@ -192,11 +204,11 @@ mv ${file_prefix}.key ${SAML_CONFIG_DIR}/saml2/mellon.key
 mv ${file_prefix}.xml ${SAML_CONFIG_DIR}/saml2/mellon-metadata.xml
 ```
 
-Script from the mod_auth_mellon package containing the file `/usr/libexec/mod_auth_mellon/mellon_create_metadata.sh`, with documentation and instructions taken from:
+Script taken from the mod_auth_mellon package containing the file `/usr/libexec/mod_auth_mellon/mellon_create_metadata.sh`, with documentation and instructions taken from:
 - https://access.redhat.com/documentation/en-us/red_hat_single_sign-on/7.3/html-single/securing_applications_and_services_guide/#configuring_mod_auth_mellon_with_red_hat_single_sign_on
 - https://www.keycloak.org/docs/latest/securing_apps/index.html#configuring-mod_auth_mellon-with-keycloak
 
-Do not use the latest script from the public GitHub repository, as it is incompatible with RH-SSO.
+Do not use the latest script from the public GitHub repository, as it is incompatible with RH-SSO without further modifications.  
 
 ### Pull IdP Metadata
 
@@ -233,6 +245,8 @@ cat ${SAML_CONFIG_DIR}/system\:proxy.crt ${SAML_CONFIG_DIR}/system\:proxy.key > 
 oc create secret generic httpd-ose-certs-secret --from-file=${SAML_CONFIG_DIR}/authproxy.pem --from-file=/etc/origin/master/proxy/ca.crt -n ${SAML_OCP_PROJECT}
 ```
 
+Technically speaking you can provide your own certificate in similar format, however, the CA file must be provided in the Oauth configuration of the OpenShift Master configuration.
+
 ### Create SAML Proxy Client Certificates
 
 The saml service provider pod will itself expose a TLS endpoint.  The OpenShift
@@ -240,6 +254,7 @@ Router will use TLS passthrough to allow it to terminate the connection.
 
 __NOTE__: These instructions use the OCP CA to sign the cert. The other option is to get your own signed certificate. It is recomended you get an organizationally trusted CA to sign this certifcate for production use, otherwise users will see their browsers prompting them to accept this certificate when they try to log in via SAML.
 
+Here you can use the `oc` tool to provision these certificates, but you could also use other libraries such as `openssl`.
 
 ```sh
 oc adm ca create-server-cert \
@@ -312,30 +327,57 @@ Create a new client by importing the ServiceProvider metadata that was output in
 
 When you login, you should be taken to the realm created automatically by the OpenShift Template.  You can verify it is labeled the same as your realm name chosen, on the left side of the UI.  
 
+![RH-SSO Landing](images/sso-landing.png)
+
 * Click on "Clients" on the left side of the window.
+
+![RH-SSO Clients](images/sso-clients.png)
+
 * Click on "Create" on the right side of the window.
+
+![RH-SSO Add Client](images/sso-add-client.png)
+
 * Click on "Select file" next to the "Import" field and select the mellon-metadata.xml produced by the script in the above steps.  You may need to copy this file over to your local machine from the master where you created it.
+
+![RH-SSO Select File](images/sso-select-file.png)
+
 * Click "Save".
 
+![RH-SSO Save Client](images/sso-save-client.png)
 
 ### Create Mappings
 
 * From the Client you just created, click "Mappers" along the top tabs.  
+
+![RH-SSO Mappers](images/sso-mappers.png)
+
 * Click "Create". 
 * Choose "Mapper Type" : "User Property". 
 * Fill in the fields as shown for all four Mappers.
+
+![RH-SSO Fullname Mapper](images/sso-mapper-fullname.png)
+
+![RH-SSO All Mappers](images/sso-mappers-all.png)
+
 
 Note that this demo uses a Mapper for ``REMOTE_USER_NAME_SAML_ATTRIBUTE=fullname`` where ``fullname`` only maps to ``firstName`` from RH-SSO.  Theexisting Keycloak SAML attribute Mappers do not have a simple way of concatenating the user's ``firstName`` and ``lastName`` attributes without writing a custom Keycloak script.  
 
 ### Add a test user and set the user's password
 
 * Click "Users" on the left side of the window.
+
+![RH-SSO User](images/sso-users.png)
+
 * Click "Add user" on the right side of the window.
+
+![RH-SSO Add User](images/sso-add-user.png)
+
 * Enter user details as needed.
 * Click "Save".
-
-On the user entry you just created, click "Credentials" tab across the top of the window.
+* On the user entry you just created, click "Credentials" tab across the top of the window.
 Reset the user password, selecting "Temporary" = "Off".
+
+![RH-SSO Reset Password](images/sso-reset-pw.png)
 
 ### Create the client, mappings, and test user in a scripted fashion
 
