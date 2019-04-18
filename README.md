@@ -1,11 +1,13 @@
 # request-header-saml-service-provider
 
-* [Introduction]
-  * [Authentication not Authorization](#authentication-not-authorization)
-  * Proxy
-  * Ansible Automated Installs
-* Set up your Environment
-* [Debuging](#debuging)
+* [Introduction](#introduction)
+* [Set up your Environment](#set-up-your-environment)
+* [Install RH-SSO on OpenShift (optional)](#install-rh-sso-on-openshift-optional)
+* [Install the Apache Mellon Server on OpenShift](#install-the-apache-mellon-server-on-openshift)
+* [Install SAML ServiceProvider Client on RH-SSO IdP (Optional)](#install-saml-serviceprovider-client-on-rh-sso-idp-optional)
+* [Update the Master API Configuration](#update-the-master-api-configuration)
+* [Update the Web Console Logout](#update-the-web-console-logout)
+* [Debugging](#debugging)
 * [Appendix](#appendix) 
 
 ## Introduction
@@ -483,7 +485,7 @@ oc apply -f webconsole-config.yaml -n openshift-web-console
 $ ansible-playbook playbooks/update-webconsole-cm.yaml
 ```
 
-# Debuging
+# Debugging
 
 ## Revert the Master API Configuration
 
