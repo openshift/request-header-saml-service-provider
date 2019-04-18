@@ -65,9 +65,9 @@ IDP_APP_NAME=sso
 
 SSO_NAMESPACE=sso
 REMOTE_USER_SAML_ATTRIBUTE=id
-REMOTE_USER_NAME_SAML_ATTRIBUTE=name
+REMOTE_USER_NAME_SAML_ATTRIBUTE=fullname
 REMOTE_USER_EMAIL_SAML_ATTRIBUTE=email
-REMOTE_USER_PREFERRED_USERNAME=username
+REMOTE_USER_PREFERRED_USERNAME_SAML_ATTRIBUTE=username
 
 OCP_REALM=ocp
 REALM_TEST_USER=test-user
@@ -267,10 +267,10 @@ oc process -f ${SAML_UTILITY_PROJECTS_DIR}/saml-auth-template.yml \
   -p=PROXY_PATH=/oauth \
   -p=PROXY_DESTINATION=${OPENSHIFT_MASTER_PUBLIC_URL}/oauth \
   -p=APPLICATION_DOMAIN=${APPLICATION_DOMAIN} \
-  -p=REMOTE_USER_SAML_ATTRIBUTE=id \
-  -p=REMOTE_USER_NAME_SAML_ATTRIBUTE=name \
-  -p=REMOTE_USER_EMAIL_SAML_ATTRIBUTE=email \
-  -p=REMOTE_USER_PREFERRED_USERNAME_SAML_ATTRIBUTE=username \
+  -p=REMOTE_USER_SAML_ATTRIBUTE=${REMOTE_USER_SAML_ATTRIBUTE} \
+  -p=REMOTE_USER_NAME_SAML_ATTRIBUTE=${REMOTE_USER_NAME_SAML_ATTRIBUTE} \
+  -p=REMOTE_USER_EMAIL_SAML_ATTRIBUTE=${REMOTE_USER_EMAIL_SAML_ATTRIBUTE} \
+  -p=REMOTE_USER_PREFERRED_USERNAME_SAML_ATTRIBUTE=${REMOTE_USER_PREFERRED_USERNAME_SAML_ATTRIBUTE} \
   | oc create -f- -n ${SAML_OCP_PROJECT}
 ```
 
@@ -430,6 +430,8 @@ oauthConfig:
 
 ```
 
+For clusters < 3.9 update this entry in master-config.yaml as well:
+
 ```yaml
 assetConfig:
   logoutURL: "https://SAML_PROXY_FQDN/mellon/logout?ReturnTo=https://SAML_PROXY_FQDN/logged_out.html"
@@ -437,9 +439,13 @@ assetConfig:
 
 Restart the master(s) at this point for the configuration to take effect.
 
+For clusters < 3.10:
+
 ```
 atomic-openshift-master-api
 ```
+
+For cluster >= 3.10:
 
 ```
 /usr/local/bin/master-restart api
@@ -546,7 +552,7 @@ The variables `REMOTE_USER_SAML_ATTRIBUTE`, `REMOTE_USER_NAME_SAML_ATTRIBUTE`, `
 These are the defaults for this project:
 
 * `REMOTE_USER_SAML_ATTRIBUTE=user` - Required. The unique user ID for the authenticating user. This should align with the LDAP server you plan to use for authorization, AKA LDAP group sync.
-* `REMOTE_USER_NAME_SAML_ATTRIBUTE=name` - Optional. Human full name of the user. This is used for display purposes in the UI.
+* `REMOTE_USER_NAME_SAML_ATTRIBUTE=fullname` - Optional. Human full name of the user. This is used for display purposes in the UI.
 * `REMOTE_USER_EMAIL_SAML_ATTRIBUTE=email` - Optional. E-mail address of the user.
 * `REMOTE_USER_PREFERRED_USERNAME_SAML_ATTRIBUTE=preferred_username` - Optional. Preferred user name, if different than the immutable identity determined from the headers specified in headers.
 

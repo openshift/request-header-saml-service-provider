@@ -11,7 +11,7 @@ idp_saml_metadata_url=https://sso.apps.ocp.example.com/auth/realms/ocp/protocol/
 idp_app_name=sso
 sso_namespace=sso
 remote_user_saml_attribute=id
-remote_user_name_saml_attribute=name
+remote_user_name_saml_attribute=fullname
 remote_user_email_saml_attribute=email
 remote_user_preferred_username=username
 
