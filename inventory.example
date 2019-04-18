@@ -1,0 +1,40 @@
+[all:vars]
+ocp_url=https://openshift.ocp.example.com
+idp_hostname=sso.apps.ocp.example.com
+idp_url=https://{{ idp_hostname }}
+idp_admin_user=admin
+idp_admin_password=Pa55word1!
+saml_auth_hostname=saml.apps.ocp.example.com
+saml_auth_url=https://{{ saml_auth_hostname }}
+httpd_saml_namespace=ocp-saml-proxy
+idp_saml_metadata_url={{ idp_url }}/auth/realms/{{ ocp_realm }}/protocol/saml/descriptor
+idp_app_name=sso
+sso_namespace=sso
+remote_user_saml_attribute=id
+remote_user_name_saml_attribute=fullname
+remote_user_email_saml_attribute=email
+remote_user_preferred_username=username
+
+ocp_realm=ocp
+realm_test_user=test-user
+realm_test_user_password=Pa55word1!
+realm_test_user_email=me@go.com
+realm_test_user_firstname=Test
+realm_test_user_lastname=User
+
+remove_htpasswd_provider=false
+
+[masters]
+master-0 ansible_host=master-0.ocp.example.com
+master-1 ansible_host=master-1.ocp.example.com
+master-2 ansible_host=master-2.ocp.example.com
+
+[infra]
+infra-0 ansible_host=infra-0.ocp.example.com
+infra-1 ansible_host=infra-1.ocp.example.com
+
+[workers]
+node-0 ansible_host=node-0.ocp.example.com 
+
+[lb]
+lb-0 ansible_host=lb-0.ocp.example.com

@@ -1,0 +1,8 @@
+saml2
+*.key*
+*.crt*
+*.pem*
+ansible.cfg
+inventory
+**/params
+*.retry

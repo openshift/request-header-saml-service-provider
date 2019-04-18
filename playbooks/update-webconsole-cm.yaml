@@ -1,0 +1,13 @@
+---
+- name: Update logout in webconsole configmap
+  hosts: master-0
+  tasks:
+    - name: Export webconsole configmap
+      shell: oc export cm webconsole-config -n openshift-web-console -o yaml > webconsole-config.yaml 
+    - name: replace logout value in configmap
+      replace:
+        path: webconsole-config.yaml
+        regexp: "logoutPublicURL.*$"
+        replace: "logoutPublicURL: '{{ saml_auth_url }}/mellon/logout?ReturnTo={{ saml_auth_url}}/login-ocp'"
+    - name: apply updated configmap
+      shell: oc apply -f webconsole-config.yaml -n openshift-web-console
