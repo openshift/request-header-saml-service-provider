@@ -321,6 +321,8 @@ When you login, you should be taken to the realm created automatically by the Op
 * Choose "Mapper Type" : "User Property". 
 * Fill in the fields as shown for all four Mappers.
 
+Note that this demo uses a Mapper for ``REMOTE_USER_NAME_SAML_ATTRIBUTE=fullname`` where ``fullname`` only maps to ``firstName`` from RH-SSO.  Theexisting Keycloak SAML attribute Mappers do not have a simple way of concatenating the user's ``firstName`` and ``lastName`` attributes without writing a custom Keycloak script.  
+
 ### Add a test user and set the user's password
 
 * Click "Users" on the left side of the window.
