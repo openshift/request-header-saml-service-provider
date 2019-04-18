@@ -98,6 +98,8 @@ All of this will be done on your first OpenShift master. While doing work direct
 
 We recommend you setup your inventory based on the example provided and update the username, password, and URL fields as you need.  You may also want to provide an ``ansible.cfg`` file as well.  The ``inventory`` and ``ansible.cfg`` files are currently ignored by git.  
 
+The playbooks should be run from a bastion, or jump, host outside of the cluster itself.
+
 ```
 $ mv inventory.example inventory
 ```
