@@ -1,0 +1,52 @@
+{
+  "protocolMappers": [
+    {
+      "name": "username",
+      "protocol": "saml",
+      "protocolMapper": "saml-user-property-mapper",
+      "consentRequired": false,
+      "config": {
+        "attribute.nameformat": "Basic",
+        "user.attribute": "username",
+        "friendly.name": "username",
+        "attribute.name": "username"
+      }
+    },
+    {
+      "name": "email",
+      "protocol": "saml",
+      "protocolMapper": "saml-user-property-mapper",
+      "consentRequired": false,
+      "config": {
+        "attribute.nameformat": "Basic",
+        "user.attribute": "email",
+        "friendly.name": "email",
+        "attribute.name": "email"
+      }
+    },
+    {
+      "name": "fullname",
+      "protocol": "saml",
+      "protocolMapper": "saml-user-property-mapper",
+      "consentRequired": false,
+      "config": {
+        "attribute.nameformat": "Basic",
+        "user.attribute": "firstName",
+        "friendly.name": "Full Name",
+        "attribute.name": "fullname"
+      }
+    },
+    {
+      "name": "id",
+      "protocol": "saml",
+      "protocolMapper": "saml-user-property-mapper",
+      "consentRequired": false,
+      "config": {
+        "attribute.nameformat": "Basic",
+        "user.attribute": "id",
+        "friendly.name": "IDP ID",
+        "attribute.name": "id"
+      }
+    }
+  ]
+}

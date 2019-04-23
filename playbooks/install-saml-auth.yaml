@@ -1,0 +1,70 @@
+---
+- name: Install the Apache Mellon Server on OpenShift
+  hosts: localhost
+  become: no
+  tasks:
+    - name: Create the server project namespace
+      command: oc new-project {{ httpd_saml_namespace }} --description='SAML proxy for RequestHeader authentication to OpenShift. See https://github.com/openshift/request-header-saml-service-provider for more details.'
+    - name: Create Apache Conf ConfigMap
+      command: oc create cm httpd-mellon-conf --from-file=../saml-service-provider/openshift.conf -n {{ httpd_saml_namespace }}
+    - name: Create ServiceProvider SAML Metadata
+      shell: |
+        mellon_endpoint_url="{{ saml_auth_url }}/mellon"
+        mellon_entity_id="${mellon_endpoint_url}/metadata"
+        file_prefix="$(echo "$mellon_entity_id" | sed 's/[^0-9A-Za-z.]/_/g' | sed 's/__*/_/g')"
+        ../saml-service-provider/mellon_create_metadata.sh $mellon_entity_id $mellon_endpoint_url
+        mkdir ../saml-service-provider/saml2
+        mv ${file_prefix}.cert ../saml-service-provider/saml2/mellon.crt
+        mv ${file_prefix}.key ../saml-service-provider/saml2/mellon.key
+        mv ${file_prefix}.xml ../saml-service-provider/saml2/mellon-metadata.xml
+    - name: Pull IdP Metadata
+      command: curl -k -o ../saml-service-provider/saml2/idp-metadata.xml {{ idp_saml_metadata_url }}
+    - name: Create ConfigMap of ServiceProvider and IdP Metadata
+      command: oc create cm httpd-saml2-config --from-file=../saml-service-provider/saml2 -n {{ httpd_saml_namespace }}
+- name: Install HTTPD SAML proxy certs from Master
+  hosts: master-0
+  become: yes
+  tasks:
+    - name: Create OCP API Client Certficates
+      shell: | 
+        oc adm create-api-client-config \
+          --certificate-authority='/etc/origin/master/ca.crt' \
+          --client-dir='/etc/origin/master/proxy' \
+          --signer-cert='/etc/origin/master/ca.crt' \
+          --signer-key='/etc/origin/master/ca.key' \
+          --signer-serial='/etc/origin/master/ca.serial.txt' \
+          --user='system:proxy'
+        cat /etc/origin/master/proxy/system\:proxy.crt /etc/origin/master/proxy/system\:proxy.key > /etc/origin/master/proxy/authproxy.pem
+        oc create secret generic httpd-ose-certs-secret --from-file=/etc/origin/master/proxy/authproxy.pem --from-file=/etc/origin/master/proxy/ca.crt -n {{ httpd_saml_namespace }}
+    - name: Create SAML Proxy Client Certificates
+      shell: | 
+        oc adm ca create-server-cert \
+          --signer-cert='/etc/origin/master/ca.crt' \
+          --signer-key='/etc/origin/master/ca.key' \
+          --signer-serial='/etc/origin/master/ca.serial.txt' \
+          --hostnames={{ saml_auth_hostname }} \
+          --cert=/etc/origin/master/httpd-server-certs/server.crt \
+          --key=/etc/origin/master/httpd-server-certs/server.key
+        mv /etc/origin/master/httpd-server-certs/{server.crt,httpd.pem}
+        mv /etc/origin/master/httpd-server-certs/{server.key,httpd-key.pem}
+        oc create secret generic httpd-server-cert-secret --from-file=/etc/origin/master/httpd-server-certs/httpd.pem -n {{ httpd_saml_namespace }}
+        oc create secret generic httpd-server-key-secret --from-file=/etc/origin/master/httpd-server-certs/httpd-key.pem -n {{ httpd_saml_namespace }}
+        oc create secret generic httpd-server-ca-cert-secret --from-file=/etc/origin/master/ca.crt -n {{ httpd_saml_namespace }}
+- name: Run template installation
+  hosts: localhost
+  become: no
+  tasks:
+    - name: Create ServerName ConfigMap
+      command: oc create cm server-name-script --from-file ../saml-service-provider/50-update-ServerName.sh -n {{ httpd_saml_namespace }}
+    - name: Deploying SAML Proxy
+      shell: | 
+        oc process -f ../saml-auth-template.yml \
+          -p=OPENSHIFT_MASTER_PUBLIC_URL={{ ocp_url }} \ 
+          -p=PROXY_PATH=/oauth \
+          -p=PROXY_DESTINATION={{ ocp_url }}/oauth \
+          -p=APPLICATION_DOMAIN={{ saml_auth_hostname }} \
+          -p=REMOTE_USER_SAML_ATTRIBUTE={{ remote_user_saml_attribute }} \
+          -p=REMOTE_USER_NAME_SAML_ATTRIBUTE={{ remote_user_name_saml_attribute }} \
+          -p=REMOTE_USER_EMAIL_SAML_ATTRIBUTE={{ remote_user_email_saml_attribute }} \
+          -p=REMOTE_USER_PREFERRED_USERNAME_SAML_ATTRIBUTE={{ remote_user_preferred_username }} \
+          | oc create -f- -n {{ httpd_saml_namespace }}

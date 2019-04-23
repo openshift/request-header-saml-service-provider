@@ -1,0 +1,35 @@
+---
+- name: Install SAML ServiceProvider Client on RH-SSO IdP
+  hosts: localhost
+  become: no
+  tasks:
+    - name: convert mellon metadata xml into rh-sso client json
+      shell: |
+        access_token=`curl -k -d "client_id=admin-cli" -d "username={{ idp_admin_user }}" --data-urlencode "password={{ idp_admin_password }}" -d "grant_type=password" "{{ idp_url }}/auth/realms/master/protocol/openid-connect/token"| jq -r '.access_token'`
+        curl -k -v \
+            -H "Authorization: bearer $access_token" \
+            -H "Content-Type: application/json;charset=utf-8" \
+            --data "@../saml-service-provider/saml2/mellon-metadata.xml" \
+            {{ idp_url }}/auth/admin/realms/{{ ocp_realm }}/client-description-converter > ../saml-service-provider/saml2/mellon-idp-client.json
+        jq -s '.[0] * .[1]' ../saml-service-provider/saml2/mellon-idp-client.json ../rh-sso/idp-mappers.json > ../saml-service-provider/saml2/mellon-idp-client-with-mappers.json
+    - name: upload client json to config map
+      command: oc create cm mellon-rh-sso-client --from-file=../saml-service-provider/saml2/mellon-idp-client-with-mappers.json -n {{ sso_namespace }}
+    - name: mount configmap volume
+      command: oc set volume dc/sso -n {{ sso_namespace }} --add --name=mellon-rh-sso-client --mount-path=/mellon-client --type=configmap --configmap-name=mellon-rh-sso-client --overwrite
+    - name: "wait for new pods (TODO: improve)"
+      command: sleep 120
+    - name: excute remote kcadm.sh commands in pods 
+      shell: |
+        POD_NAME=`oc get pods -n {{ sso_namespace }} | grep -e "sso.*Running" | head -1 | awk '{print $1}'`
+        TRUSTSTORE_PASSWORD=`oc rsh -n {{ sso_namespace }} $POD_NAME xmllint --xpath "string(/*[namespace-uri()='urn:jboss:domain:8.0' and local-name()='server']/*[namespace-uri()='urn:jboss:domain:8.0' and local-name()='profile']/*[namespace-uri()='urn:jboss:domain:keycloak-server:1.1' and local-name()='subsystem']/*[namespace-uri()='urn:jboss:domain:keycloak-server:1.1' and local-name()='spi' and @name='truststore']/*[namespace-uri()='urn:jboss:domain:keycloak-server:1.1' and local-name()='provider' and @name='file']/*[namespace-uri()='urn:jboss:domain:keycloak-server:1.1' and local-name()='properties']/*[local-name()='property' and @name='password']/@value)" /opt/eap/standalone/configuration/standalone-openshift.xml`
+        oc rsh -n {{ sso_namespace }} $POD_NAME /opt/eap/bin/kcadm.sh config truststore --trustpass $TRUSTSTORE_PASSWORD /opt/eap/keystores/truststore.jks
+        oc rsh -n {{ sso_namespace }} $POD_NAME /opt/eap/bin/kcadm.sh config credentials --server https://{{ idp_app_name }}.{{ sso_namespace }}.svc:8443/auth --realm master --user {{ idp_admin_user }} --password {{ idp_admin_password }}
+        oc rsh -n {{ sso_namespace }} $POD_NAME /opt/eap/bin/kcadm.sh create clients -r {{ ocp_realm }} -f /mellon-client/mellon-idp-client-with-mappers.json
+        oc rsh -n {{ sso_namespace }} $POD_NAME /opt/eap/bin/kcadm.sh create users -r {{ ocp_realm }} -s username={{ realm_test_user }} -s enabled=true -s email={{ realm_test_user_email }} -s firstName={{ realm_test_user_firstname }} -s lastName={{ realm_test_user_lastname }} -o --fields id,username
+        oc rsh -n {{ sso_namespace }} $POD_NAME /opt/eap/bin/kcadm.sh set-password -r {{ ocp_realm }} --username {{ realm_test_user }} --new-password {{ realm_test_user_password }}
+    - name: update configmap with new idp data (restart created new)
+      shell: |
+        curl -k -o ../saml-service-provider/saml2/idp-metadata.xml {{ idp_saml_metadata_url }}
+        oc delete cm httpd-saml2-config -n {{ httpd_saml_namespace }}
+        oc create cm httpd-saml2-config --from-file=../saml-service-provider/saml2 -n {{ httpd_saml_namespace }}
+        oc rollout latest dc/saml-auth -n {{ httpd_saml_namespace }}
