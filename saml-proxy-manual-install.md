@@ -1,16 +1,19 @@
 # SAML Proxy - Manual Install
 
-Instrutions for installing the SAML Proxy via manual steps.
-
+* [Introduction](#introduction)
 * [Setup](#setup)
 * [Install Proxy](#install-proxy)
 * [Update Identity Providers](#update-identity-providers)
 * [Update Web Console Logout](#update-web-console-logout)
 * [Debugging](#debugging)
 
-# Setup
+## Introduction
 
-## Set environment variables
+Instrutions for installing the SAML Proxy via manual steps.
+
+## Setup
+
+### Set environment variables
 
 Setting these now will make running future steps much more of just a copy/paste exercise rather than more manual fill in the blank.
 
@@ -38,27 +41,27 @@ APPLICATION_DOMAIN=${SAML_PROXY_FQDN}
 | `GIT_REPO`                    | The git repo for this project
 | `GIT_BRANCH`                  | The git branch you would like to check out.
 
-## Create place to store SAML config files and clone required utitility projects
+### Create place to store SAML config files and clone required utitility projects
 
 ```sh
 mkdir -p ${SAML_CONFIG_DIR}
 git clone ${GIT_REPO} ${SAML_UTILITY_PROJECTS_DIR} --branch ${GIT_BRANCH}
 ```
 
-## Log into first master and SUDO to root
+### Log into first master and SUDO to root
 
 All of this will be done on your first OpenShift master. While doing work directly on an OpenShift master is typically discouraged, you need access to files that live on the first master to complete this procedure, you will also need to be root, or be able to sudo to root, to access the required files. 
 
 
-## Copy IdP Provided Metadata
+### Copy IdP Provided Metadata
 
 If you have not already [Get your IdP Provided metadata](README.md#get_your_idp_provided_metadata).
 
-### Option 1: Existing External SAML IdP
+#### Option 1: Existing External SAML IdP
 
 Once received this file should be put in `${SAML_CONFIG_DIR}/saml2/idp-metadata.xml`.  If you choose to deploy the test IdP, you will pull this in another step later.
 
-### Option 2: Test RH-SSO SAML IdP
+#### Option 2: Test RH-SSO SAML IdP
 
 If you deployed the RH-SSO instance, pull the IdP Metadata from the server.
 
@@ -66,17 +69,17 @@ If you deployed the RH-SSO instance, pull the IdP Metadata from the server.
 curl -k -o ${SAML_CONFIG_DIR}/saml2/idp-metadata.xml ${IDP_SAML_METADATA_URL}
 ```
 
-# Install Proxy
+## Install Proxy
 
 This creates an instance of an Apache HTTPD server with mod_auth_mellon installed, based off the current httpd24 image provided by the Red Hat Container Catalog.  If you need to debug your server, you can follow further steps in the `saml-service-provider/debug` folder.
 
-## Create the server project namespace
+### Create the server project namespace
 
 ```sh
 oc new-project ${SAML_OCP_PROJECT} --description='SAML proxy for RequestHeader authentication to OpenShift. See https://github.com/openshift/request-header-saml-service-provider for more details.'
 ```
 
-## Create Apache Conf ConfigMap
+### Create Apache Conf ConfigMap
 
 Mount your Mellon Specific apache settings.  If you need to further customize your apache configuration, you can update this ``openshift.conf`` file.  You may wish to use different RequestHeader names or provide additional configuration tweaks.  
 
@@ -84,7 +87,7 @@ Mount your Mellon Specific apache settings.  If you need to further customize yo
 oc create cm httpd-mellon-conf --from-file=${SAML_UTILITY_PROJECTS_DIR}/saml-service-provider/openshift.conf -n ${SAML_OCP_PROJECT}
 ```
 
-## Create ServiceProvider SAML Metadata
+### Create ServiceProvider SAML Metadata
 
 This script generates metadata XML for your ServiceProvider, which is used by the Mellon library and is configured in your `openshift.conf` file.  You do not have to use the certificates generated here, but the generated XML outputs will give you an example of how to form your XMLdata and add your own certificates.
 
@@ -108,7 +111,7 @@ Script taken from the mod_auth_mellon package containing the file `/usr/libexec/
 
 Do not use the latest script from the public GitHub repository, as it is incompatible with RH-SSO without further modifications.  
 
-## Create ConfigMap of ServiceProvider and IdP Metadata
+### Create ConfigMap of ServiceProvider and IdP Metadata
 
 Create a ConfigMap to mount the certificates and metadata to the pods.
 
@@ -116,7 +119,7 @@ Create a ConfigMap to mount the certificates and metadata to the pods.
 oc create cm httpd-saml2-config --from-file=${SAML_CONFIG_DIR}/saml2 -n ${SAML_OCP_PROJECT}
 ```
 
-## Create OCP API Client Certficates
+### Create OCP API Client Certficates
 
 This certificate is used by the saml service provider pod to make a secure
 request to the Master.  Using all the defaults, a suitable file can be created
@@ -137,7 +140,7 @@ oc create secret generic httpd-ose-certs-secret --from-file=${SAML_CONFIG_DIR}/a
 
 Technically speaking you can provide your own certificate in similar format, however, the CA file must be provided in the Oauth configuration of the OpenShift Master configuration.
 
-## Create SAML Proxy Client Certificates
+### Create SAML Proxy Client Certificates
 
 The saml service provider pod will itself expose a TLS endpoint.  The OpenShift
 Router will use TLS passthrough to allow it to terminate the connection.
@@ -160,7 +163,7 @@ oc create secret generic httpd-server-key-secret --from-file=${SAML_CONFIG_DIR}/
 oc create secret generic httpd-server-ca-cert-secret --from-file=/etc/origin/master/ca.crt -n ${SAML_OCP_PROJECT}
 ```
 
-## Create ServerName ConfigMap
+### Create ServerName ConfigMap
 
 This replaces the ServerName field with your defined FQDN and port from an environment variable.
 
@@ -168,7 +171,7 @@ This replaces the ServerName field with your defined FQDN and port from an envir
 oc create cm server-name-script --from-file ${SAML_UTILITY_PROJECTS_DIR}/saml-service-provider/50-update-ServerName.sh -n ${SAML_OCP_PROJECT}
 ```
 
-## Deploying SAML Proxy
+### Deploying SAML Proxy
 
 ```sh
 oc process -f ${SAML_UTILITY_PROJECTS_DIR}/saml-auth-template.yml \
@@ -189,7 +192,7 @@ The template defines replicas as 1.  This pod can be scaled to multiple replicas
 oc scale --replicas=2 dc saml-auth
 ```
 
-## Test SAML Proxy
+### Test SAML Proxy
 At this point you should be able to download your SP client metadata from the Apache mod_auth_mellon server.
 
 Verify your `mellon-metadata.xml` downloads:
@@ -198,7 +201,7 @@ Verify your `mellon-metadata.xml` downloads:
 curl -k https://${SAML_PROXY_FQDN}/mellon/metadata
 ```
 
-# Update Identity Providers
+## Update Identity Providers
 
 This configures the OAuth OpenShift Provider to Proxy to your SAML Proxy provider, which in turn proxies to your IdP.  Be sure your RequestHeader fields used here match those in your saml-auth openshift.conf file.
 
@@ -259,7 +262,7 @@ For cluster >= 3.10:
 /usr/local/bin/master-restart api
 ```
 
-# Update Web Console Logout
+## Update Web Console Logout
 
 This is written ONLY for OCP 3.9 and above.  For lower, you need to update the assetConfig entries in the master-config.yaml.
 
@@ -275,7 +278,7 @@ oc export cm webconsole-config -n openshift-web-console -o yaml > webconsole-con
 
 oc apply -f webconsole-config.yaml -n openshift-web-console
 
-# Debugging
+## Debugging
 
 See [Debugging](README.md#debugging).
 

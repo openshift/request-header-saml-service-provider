@@ -5,7 +5,7 @@
 * [Debugging](#debugging)
 * [Appendix](#appendix)
 
-# Introduction
+## Introduction
 
 This project sets up OpenShift [Request header](https://docs.openshift.com/container-platform/3.11/install_config/configuring_authentication.html#RequestHeaderIdentityProvider) authentication between a SAML IdP and OpenShift with mod_auth_mellon acting as a SAML Proxy.
 
@@ -17,21 +17,21 @@ The high level communication flow that is created by implementing this solution 
 5. OCP oAuth
 6. OCP console
 
-## Authentication not Authorization
+### Authentication not Authorization
 
 This solution will implement SAML-based authentication for your OpenShift cluster. For authorization, the most common solution is [Syncing groups With LDAP](https://docs.openshift.com/container-platform/3.11/install_config/syncing_groups_with_ldap.html) and ensuring the `user` identity provided by your SAML IdP matches the user's identity in your LDAP.
 
-## Proxy
+### Proxy
 
 This proxy is a solution to proxy ONLY the OpenShift OAuth login endpoint.  We do not recommend you proxy all OpenShift content requested from either the Master API or the Web Console.  That would not be a good idea because the proxy likely cannot pass all request types through correctly (websockets, SPDY).  The OpenShift OAuth provider should alone be responsible for the security of the platform.
 
-## RH-SSO
+### RH-SSO
 
 If the enviornment you are testing this in does not already have a SAML Identity Provider this repository inclues instructions for deploying a conterized instance of Red Hat Single Sign On (upstream Keycloak) to test aginst.
 
 **WARNING**: The RH-SSO install and instructions provided here are not intended for produciton use and are intended for sandbox testing fo the SAML proxy intigration only.
 
-## Install Paths
+### Install Paths
 
 This project provides two ways of installing the SAML proxy, manual, or automated via Ansible.
 
@@ -39,9 +39,9 @@ In either case the instructions should be followed against a non criticle cluste
 
 **WARNING**: The Ansbile instructions are new and less tested then the manual instructions, use at your own discression.
 
-# Install Instructions
+## Install Instructions
 
-## Get your IdP Provided metadata
+### Get your IdP Provided metadata
 
 If you are not using the test IdP in this project, your IdP administrator must provide you with your IdP metadata XML file. Information they will request from you will include but not necessarily be limited to:
 
@@ -54,20 +54,20 @@ If you are not using the test IdP in this project, your IdP administrator must p
   * `email` - Optional. E-mail address of the user.
   * `preferred_username` - Optional. Preferred user name, if different than the immutable identity determined from the headers specified in headers.
 
-## Optional: Install Red Hat Single Sign on as Test Identity Provider
+### Optional: Install Red Hat Single Sign on as Test Identity Provider
 See [RH-SSO](rh-sso-install.md).
 
-## Install & Configure SAML Proxy
+### Install & Configure SAML Proxy
 
 Choose one path:
    * [Manual](saml-proxy-manual-install.md)
    * [Ansible](saml-proxy-ansible-install.md)
 
-# Debugging
+## Debugging
 
 Helpful information about debugging the SAML Proxy.
 
-## Revert the Master API Configuration
+### Revert the Master API Configuration
 
 Use this in the event you need to rollback to the HTPasswd provider.
 
@@ -75,7 +75,7 @@ Use this in the event you need to rollback to the HTPasswd provider.
 $ ansible-playbook playbooks/revert-oauth-on-master.yaml
 ```
 
-## Clean up Resources
+### Clean up Resources
 
 ```
 rm -rf ${SAML_CONFIG_DIR}
@@ -90,7 +90,7 @@ oc delete identity `oc get identities | grep test-user | awk '{print $1}'`
 Note: this does not revert changes on your web console config.
 
 
-## Making changes to secrets
+### Making changes to secrets
 
 It's likely you will need to update the value of some secrets.  To do this
 simply delete the secret and recreate it.  Then trigger a new deployment.
@@ -102,8 +102,7 @@ oc create secret generic <secret name> --from-file=<path>
 oc rollout latest saml-auth
 ```
 
-
-## Using the debug image
+### Using the debug image
 
 This project builds the base deployment from the Red Hat supported httpd24 image found in the Red Hat Container Catalog.  It also provides a helpful, but custom, debug image if needed.  Please see the ``saml-service-provider/debug/README.adoc`` for more instructions on using it. It is very important to note this debug image should only be used during debuging and should not be used when going live in "production".
 
@@ -122,17 +121,17 @@ oc project ${SAML_OCP_PROJECT}
 oc set triggers dc/saml-auth --containers=saml-auth --from-image=openshift/httpd:latest 
 ```
 
-## Common Issues
+### Common Issues
 Common issues you will run into while getting this to work.
 
-### NameIDFormat
+#### NameIDFormat
 By default when you [Generate SP SAML Metadata](#generate-sp-saml-metadata) from the `mellon_create_metadata.sh` script there is no `NameIDFormat` specified. Apache [mod_auth_mellon](https://github.com/Uninett/mod_auth_mellon/blob/master/doc/user_guide/mellon_user_guide.adoc#485-how-do-you-specify-the-nameid-format-in-saml) defaults to a setting of `transient`. This `transient` setting is a good default for our SAML proxy, as it allows the server to define every visitor with a unique ID prior to establishing any ID context from your IdP.  You will probably not, however, want to use this field as any mapped value to OpenShift.  If your IdP is expecting a different setting then you could end up with errors, most likely presenting your IdP error logs.
 
 If there is a mismatch, then update your `saml-sp.xml` with the correct `NameIDFormat` and [recreate](#making-changes-to-secrets) the `httpd-saml-config-secret` secret.
 
 For more information on `NameIDFormat` see the mod_auth_mellon doc [4.8.5. How do you specify the NameID format in SAML?](https://github.com/Uninett/mod_auth_mellon/blob/master/doc/user_guide/mellon_user_guide.adoc#485-how-do-you-specify-the-nameid-format-in-saml).
 
-### IdP Attribute Mapping
+#### IdP Attribute Mapping
 The variables `REMOTE_USER_SAML_ATTRIBUTE`, `REMOTE_USER_NAME_SAML_ATTRIBUTE`, `REMOTE_USER_EMAIL_SAML_ATTRIBUTE`, and `REMOTE_USER_PREFERRED_USERNAME_SAML_ATTRIBUTE` should allow you to arbitrarly set what the IdP attribute names are for those fields and map them accordingly to the RequestHeaders.
 
 These are the defaults for this project:
@@ -146,26 +145,26 @@ If there is an issue with attributes being matched correctly you could end up se
 
 * infinite redirect loop between OCP oAuth and SAML Proxy
 
-### clientCA not the CA that signed your SAML Proxy client certificates
+#### clientCA not the CA that signed your SAML Proxy client certificates
 If the `clientCA` value set in the [OpenShift master configuration changes](#openshift-master-configuration-changes) step is not the CA that signed the [Create SAML Proxy Client Certificates](#create-saml-proxy-client-certificates) then you could see an infinite redirect between OpenShift oAuth and SAML Proxy or other certificate errors in the browser or various logs.
 
-### User Attributes Missing or Incorrect
+#### User Attributes Missing or Incorrect
 Symptoms:
 Logging into Openshift with the SAML provider will have a 403 Forbidden Error.
 On the saml-auth pod (only the debug version) running on Openshift, you will see this line in `/etc/httpd/conf.d/mellon_diagnostics`
 `am_check_permissions processing condition 0 of 1: varname="user" flags=[REG] str=".+" directive="MellonCond user .+ [REG]" failed (no OR condition) returning HTTP_FORBIDDEN`
 This error is an indication that your SAML mappings coming from your IdP are not mapping correctly. The SAML property needs to be mapped as "user".
 
-## Reducing Debug Footprint
+### Reducing Debug Footprint
 While debuging it is helpful if you reduce the places you need to look for logs. It is then suggested that you:
 
 1. scale the `saml-auth` service to 1 pod so there is only one place for SAML Proxy logs
 2. update your load balancer for the OpenShift `masterURL` and `masterPublicURL` to only your first OpenShift master so there is only one OpenShift master to monitor for logs
 
-## Debug logs
+### Debug logs
 Helpful logs to look at while debuging.
 
-### SAML Proxy Container
+#### SAML Proxy Container
 This is assuming you are using the debug image.
 
 * `/etc/httpd/conf.d/mellon_diagnostics`
@@ -174,18 +173,18 @@ This is assuming you are using the debug image.
   * contains the output of `mod_dumpio` plus other helpful logs
   * helpful for knowing if OCP Console is at least redirecting to SAML Proxy correctly
 
-### OpenShift Master
+#### OpenShift Master
 It helps if first you follow [Reducing Debug Footprint](#reducing-debug-footprint) so there is only one OpenShift master set of logs to look at.
 
 * `journalctl -lafu atomic-openshift-master-api | tee > /tmp/master-api-logs`
   * useful for debuging the communication between OCP oAuth and SAML Proxy
   
-### IdP
+#### IdP
 It can not be stressed enough the importance of having your local IdP administrator be involved with your debuging efforts. The speed at which you can resolve issues is expontential if you can have them monitoring the IdP logs at the same time you are doing your initial testing and reporting back what errors they see, and or, even better, screen sharing those logs with you.
 
 
-# Appendix
-## Terms
+## Appendix
+### Terms
 Helpful terms and their defintions used throughout this document.
 
 | Term       | Meaning

@@ -1,28 +1,31 @@
 # Red Hat Single Sign On - Install
 
-If the enviornment you are testing this in does not already have a SAML Identity Provider this document inclues instructions for deploying a conterized instance of Red Hat Single Sign On (upstream Keycloak) to test aginst.
-
+* [Introduction](#introduction)
 * [Warning](#warning)
 * [Setup](#setup)
 * [Install RH-SSO](#install-rh-sso)
 * [Install SAML ServiceProvider Client](#install-saml-serviceprovider-client)
 
-# Warning
+## Introduction
+
+If the enviornment you are testing this in does not already have a SAML Identity Provider this document inclues instructions for deploying a conterized instance of Red Hat Single Sign On (upstream Keycloak) to test aginst.
+
+## Warning
 
 **WARNING**: The RH-SSO install and instructions provided here are not intended for produciton use and are intended for sandbox testing fo the SAML proxy intigration only.
 
-# Setup
+## Setup
 
-## Create place to store SAML config files and clone required utitility projects
+### Create place to store SAML config files and clone required utitility projects
 
 ```sh
 mkdir -p ${SAML_CONFIG_DIR}
 git clone ${GIT_REPO} ${SAML_UTILITY_PROJECTS_DIR} --branch ${GIT_BRANCH}
 ```
 
-## Option 1: Ansible
+### Option 1: Ansible
 
-### Create Ansible Inventory
+#### Create Ansible Inventory
 
 We recommend you setup your inventory based on the example provided and update the username, password, and URL fields as you need.  You may also want to provide an ``ansible.cfg`` file as well.  The ``inventory`` and ``ansible.cfg`` files are currently ignored by git.
 
@@ -36,7 +39,7 @@ mv inventory.example inventory
 |-------------------------------|------------
 | `TODO`                        | TODO
 
-## Login to OpenShift
+### Login to OpenShift
 
 Login to your OpenShift Client with a cluster-admin user from the system you will be running the playbooks from
 
@@ -44,9 +47,9 @@ Login to your OpenShift Client with a cluster-admin user from the system you wil
 oc login https://openshift.ocp.example.com:443
 ```
 
-## Option 2: Manual
+### Option 2: Manual
 
-### Set environment variables
+#### Set environment variables
 
 Setting these now will make running future steps much more of just a copy/paste exercise rather than more manual fill in the blank.
 
@@ -84,32 +87,32 @@ REALM_TEST_USER_LASTNAME=User
 |-------------------------------|------------
 | `TODO`                        | TODO
 
-### Log into first master and SUDO to root
+#### Log into first master and SUDO to root
 
 All of this will be done on your first OpenShift master. While doing work directly on an OpenShift master is typically discouraged, you need access to files that live on the first master to complete this procedure, you will also need to be root, or be able to sudo to root, to access the required files. 
 
 If you choose to run the Ansible playbooks, you do not need to be logged in to the OpenShift master,  but your Ansible configuration should be setup to gain access to it.
 
 
-# Install RH-SSO
+## Install RH-SSO
 
 This creates an instance of RH-SSO based off the 7.3 template, with no persistent volume.  This is for testing use only and none of your configuration will persist.  If your pod crashes or you destroy the pod, your certificates will be different and you will need to make adjustments to your work on the saml-auth server.  In this event, we recommend deleting everything, as in the "Clean Up" section below, and starting over.  If you already have an IdP, you could skip this step, but it might provide useful as an exercise for your understanding of how the SAML mappings work.
 
-## Option 1: Ansible
+### Option 1: Ansible
 
 ```sh
 ansible-playbook playbooks/install-rh-sso.yaml
 ```
 
-## Option 2: Manaul
+### Option 2: Manaul
 
-### Create project namespace
+#### Create project namespace
 
 ```sh
 oc new-project sso
 ```
 
-### Run template install
+#### Run template install
 
 ```sh
 oc process -f ${SAML_UTILITY_PROJECTS_DIR}/rh-sso/sso73-x509-https.yaml \
@@ -124,21 +127,21 @@ oc process -f ${SAML_UTILITY_PROJECTS_DIR}/rh-sso/sso73-x509-https.yaml \
 Note that there is no persistent database backing this template.  This is for test purposes only and a pod restart will clear the app configuration.
 
 
-# Install SAML ServiceProvider Client
+## Install SAML ServiceProvider Client
 
 If you chose to install the RH-SSO IdP in the previous steps, you will need to configure the saml-auth Client for the corresponding authentication Realm.  This also installs a test-user account in the realm.
 
 __Note__: because we are adding a configmap to the SSO deploymentconfig, a new instance rolls out with the update.  This in turn requires a configmap update to the saml-auth server.  When debugging, be sure both sides have the correct updates to all certificates.
 
-## Option 1: Ansible
+### Option 1: Ansible
 
 ```sh
 ansible-playbook playbooks/install-rh-sso-client.yaml
 ```
 
-## Option 2: Manual
+### Option 2: Manual
 
-### Create the client in RH-SSO
+#### Create the client in RH-SSO
 
 Create a new client by importing the ServiceProvider metadata that was output in the previous steps.  
 
@@ -162,7 +165,7 @@ When you login, you should be taken to the realm created automatically by the Op
 
 ![RH-SSO Save Client](images/sso-save-client.png)
 
-### Create Mappings
+#### Create Mappings
 
 * From the Client you just created, click "Mappers" along the top tabs.  
 
@@ -179,7 +182,7 @@ When you login, you should be taken to the realm created automatically by the Op
 
 Note that this demo uses a Mapper for ``REMOTE_USER_NAME_SAML_ATTRIBUTE=fullname`` where ``fullname`` only maps to ``firstName`` from RH-SSO.  The existing Keycloak SAML attribute Mappers do not have a simple way of concatenating the user's ``firstName`` and ``lastName`` attributes without writing a custom Keycloak script.  
 
-### Add a test user and set the user's password
+#### Add a test user and set the user's password
 
 * Click "Users" on the left side of the window.
 
@@ -196,7 +199,7 @@ Reset the user password, selecting "Temporary" = "Off".
 
 ![RH-SSO Reset Password](images/sso-reset-pw.png)
 
-### Create the client, mappings, and test user in a scripted fashion
+#### Create the client, mappings, and test user in a scripted fashion
 
 Notes: DO NOT perform these steps if you performed the manual steps above.  Also, you will need `jq` which is available in EPEL7.  
 
@@ -249,6 +252,6 @@ oc rollout latest dc/saml-auth -n ${SAML_OCP_PROJECT}
 Note: because we are adding a configmap to the SSO deploymentconfig, a new instance rolls out with the update.  This in turn requires a configmap update to the saml-auth server.  When debugging, be sure both sides have the correct updates to all certificates.
 
 
-# Debugging
+## Debugging
 
 See [Debugging](README.md#debugging).
