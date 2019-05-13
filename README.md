@@ -12,7 +12,7 @@
 
 ## Introduction
 
-This project sets up OpenShift [Request header](https://docs.openshift.com/container-platform/3.11/install_config/configuring_authentication.html#RequestHeaderIdentityProvider) authentication between a SAML IdP and OpenShift with mod_auth_mellon acting as a SAML Proxy.  There are Ansible playbooks available to roll the installs automatically, but be aware they are not resilient and you may need to modify them to work with your own environment.  Contributions and improvements are always welcome.  The playbook uses RH-SSO, built upon Keycloak, as an example IdP.  It would be great to spin up a test cluster just to practice these steps and understand how everything works, prior to attempting to integrate with another IdP.  The playbooks expect a minimal cluster install with the basic HTPasswd provider.
+This project sets up OpenShift [Request header](https://docs.openshift.com/container-platform/3.11/install_config/configuring_authentication.html#RequestHeaderIdentityProvider) authentication between a SAML IdP and OpenShift with mod_auth_mellon acting as a SAML Proxy.
 
 The high level communication flow that is created by implementing this solution is:
 1. OCP Console
@@ -31,6 +31,8 @@ This solution will implement SAML-based authentication for your OpenShift cluste
 This proxy is a solution to proxy ONLY the OpenShift OAuth login endpoint.  We do not recommend you proxy all OpenShift content requested from either the Master API or the Web Console.  That would not be a good idea because the proxy likely cannot pass all request types through correctly (websockets, SPDY).  The OpenShift OAuth provider should alone be responsible for the security of the platform.
 
 ### Ansible Automated Installs
+
+There are Ansible playbooks available to roll the installs automatically, but be aware they are not resilient and you may need to modify them to work with your own environment.  Contributions and improvements are always welcome.  The playbook uses RH-SSO, built upon Keycloak, as an example IdP.  It would be great to spin up a test cluster just to practice these steps and understand how everything works, prior to attempting to integrate with another IdP.  The playbooks expect a minimal cluster install with the basic HTPasswd provider.
 
 **WARNING**: If running through the ansiblilized instructions be sure to run them against a test cluster before running against a cluster criticle to your operations. The same is also true of running through the manual steps, though when running through the manual steps you will have a clearly idea of which step broke your cluster and how vs the ansible steps which do all the work for you and do not come with reversing playbooks.
 
