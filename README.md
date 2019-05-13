@@ -32,7 +32,7 @@ This proxy is a solution to proxy ONLY the OpenShift OAuth login endpoint.  We d
 
 ### Ansible Automated Installs
 
-WARNING: Be sure to run this only on test environments with NO tenants!!  This is not production ready and will probably require manual adjustments based on your environment and implementation.
+**WARNING**: If running through the ansiblilized instructions be sure to run them against a test cluster before running against a cluster criticle to your operations. The same is also true of running through the manual steps, though when running through the manual steps you will have a clearly idea of which step broke your cluster and how vs the ansible steps which do all the work for you and do not come with reversing playbooks.
 
 ## Set up your Environment
 
