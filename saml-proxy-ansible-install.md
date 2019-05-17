@@ -10,11 +10,11 @@
 
 ## Introduction
 
-Instrutions for installing the SAML Proxy via Ansible.
+Instructions for installing the SAML Proxy via Ansible.
 
 ## Warning
 
-The Ansbile instructions are new and less tested then the manual instructions, use at your own discression.
+The Ansbile instructions are new and less tested then the manual instructions, use at your own discretion.
 
 ## Setup
 
@@ -22,15 +22,23 @@ The Ansbile instructions are new and less tested then the manual instructions, u
 
 We recommend you setup your inventory based on the example provided and update the username, password, and URL fields as you need.  You may also want to provide an ``ansible.cfg`` file as well.  The ``inventory`` and ``ansible.cfg`` files are currently ignored by git.  
 
-The playbooks should be run from a bastion, or jump, host outside of the cluster itself.
+The playbooks should be run from a bastion, or jump host, outside of the cluster itself.
 
 ```sh
 mv inventory.example inventory
 ```
 
-| Variable                      | Description
-|-------------------------------|------------
-| `TODO`                        | TODO
+| Variable                            | Description
+|-------------------------------------|------------
+| `openshift_master_public_url`       | URL to your OpenShift Master Web Console
+| `saml_proxy_fqdn`                   | Hostname of your saml proxy
+| `saml_proxy_url`                    | Derived from the above.  Do not edit.
+| `saml_proxy_namespace`              | OpenShift project namespace where you plan to deploy your saml proxy
+| `remote_user_saml_attribute`        | The field name for a user's primary ID sent by your IdP
+| `remote_user_name_saml_attribute`   | The field name for a user's full name sent by your IdP
+| `remote_user_email_saml_attribute`  | The field name for a user's email sent by your IdP
+| `remote_user_preferred_username`    | The field name for a user's preferred username sent by your IdP.  Use this when remote_user_saml_attribute is some unique identifier (e.g. a GUID) that is not typically shown to the user.  This would be the user's common username.
+| `remove_htpasswd_provider`          | True if you want to remove HTPasswd Provider.  You may want to leave it False if you want to fall back to using this Provider during testing.  The OpenShift login will present you with a choice of options before proceeding during a normal login sequence.
 
 ### Login to OpenShift
 

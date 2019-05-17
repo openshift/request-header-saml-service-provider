@@ -27,17 +27,19 @@ This proxy is a solution to proxy ONLY the OpenShift OAuth login endpoint.  We d
 
 ### RH-SSO
 
-If the enviornment you are testing this in does not already have a SAML Identity Provider this repository inclues instructions for deploying a conterized instance of Red Hat Single Sign On (upstream Keycloak) to test aginst.
+If the environment you are testing this in does not already have a SAML Identity Provider, this repository includes instructions for deploying a containerized instance of Red Hat Single Sign On (upstream Keycloak) to test against.
 
-**WARNING**: The RH-SSO install and instructions provided here are not intended for produciton use and are intended for sandbox testing fo the SAML proxy intigration only.
+**WARNING**: The RH-SSO install and instructions provided here are not intended for produciton use and are intended for sandbox testing of the SAML proxy intigration only.
 
 ### Install Paths
 
-This project provides two ways of installing the SAML proxy, manual, or automated via Ansible.
+This project provides two ways of installing the SAML proxy: 
+- manual
+- automated via Ansible.
 
-In either case the instructions should be followed against a non criticle cluster in your enviornment first to get an understanding of how they perform in your specific enviornment and because this project and these instructions come with no garinty of working in your specific enviornment.
+In either case the instructions should be followed against a non critical cluster in your environment first to get an understanding of how they perform in your specific environment and because this project and these instructions come with no guarantee of working in your specific environment.
 
-**WARNING**: The Ansbile instructions are new and less tested then the manual instructions, use at your own discression.
+**WARNING**: The Ansbile instructions are new and less tested than the manual instructions, use at your own discretion.
 
 ## Install Instructions
 
@@ -96,7 +98,7 @@ It's likely you will need to update the value of some secrets.  To do this
 simply delete the secret and recreate it.  Then trigger a new deployment.
 
 ```sh
-oc project ${SAML_OCP_PROJECT}
+oc project ${SAML_PROXY_NAMESPACE}
 oc delete secret <secret name>
 oc create secret generic <secret name> --from-file=<path>
 oc rollout latest saml-auth
@@ -111,13 +113,13 @@ The debug image enables `mod_auth_mellon-diagnostics` and `mod_dumpio` both of w
 To use the debug image:
 
 ```sh
-oc project ${SAML_OCP_PROJECT}
+oc project ${SAML_PROXY_NAMESPACE}
 oc set triggers dc/saml-auth --containers=saml-auth --from-image=httpd-debug:latest 
 ```
 
 To go back to the non-debug image:
 ```sh
-oc project ${SAML_OCP_PROJECT}
+oc project ${SAML_PROXY_NAMESPACE}
 oc set triggers dc/saml-auth --containers=saml-auth --from-image=openshift/httpd:latest 
 ```
 

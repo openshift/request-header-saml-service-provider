@@ -8,11 +8,11 @@
 
 ## Introduction
 
-If the enviornment you are testing this in does not already have a SAML Identity Provider this document inclues instructions for deploying a conterized instance of Red Hat Single Sign On (upstream Keycloak) to test aginst.
+If the environment you are testing this in does not already have a SAML Identity Provider, this document includes instructions for deploying a containerized instance of Red Hat Single Sign On (upstream Keycloak) to test against.
 
 ## Warning
 
-**WARNING**: The RH-SSO install and instructions provided here are not intended for produciton use and are intended for sandbox testing fo the SAML proxy intigration only.
+**WARNING**: The RH-SSO install and instructions provided here are not intended for produciton use and are intended for sandbox testing fo the SAML proxy integration only.
 
 ## Setup
 
@@ -37,7 +37,20 @@ mv inventory.example inventory
 
 | Variable                      | Description
 |-------------------------------|------------
-| `TODO`                        | TODO
+| `sso_application_name`        | The name of the app in OpenShift.
+| `sso_hostname`                | The hostname requested.  Will be used to create the OpenShift route.
+| `sso_admin_username`          | Admin username for logging into the RH-SSO Admin console.
+| `sso_admin_password`          | Admin password for logging into the RH-SSO Admin console.
+| `sso_realm`                   | Name of RH-SSO Realm for users.
+| `sso_namespace`               | Namespace of the RH-SSO project in OpenShift.
+| `sso_saml_metadata_url`       | The URL to pull IdP metadata XML for use by the SAML proxy.
+|
+| `realm_test_user`             | Username for test user.
+| `realm_test_user_password`    | Password for test user.
+| `realm_test_user_email`       | Email for test user.
+| `realm_test_user_firstname`   | First name for test user.
+| `realm_test_user_lastname`    | Last name for test user.
+
 
 ### Login to OpenShift
 
@@ -54,28 +67,15 @@ oc login https://openshift.ocp.example.com:443
 Setting these now will make running future steps much more of just a copy/paste exercise rather than more manual fill in the blank.
 
 ```sh
-APPLICATION_NAME=sso
+SSO_APPLICATION_NAME=sso
 SSO_HOSTNAME=sso.apps.ocp.example.com
 SSO_URL=https://${SSO_HOSTNAME}
 SSO_ADMIN_USERNAME=admin
 SSO_ADMIN_PASSWORD=Pa55word1!
 SSO_REALM=ocp
 SSO_NAMESPACE=sso
+SSO_SAML_METADATA_URL=${SSO_URL}/auth/realms/${SSO_REALM}/protocol/saml/descriptor
 
-IDP_SAML_METADATA_URL=${SSO_URL}/auth/realms/${SSO_REALM}/protocol/saml/descriptor
-IDP_ADMIN_USER=admin
-IDP_ADMIN_PASSWORD=RedHat1!
-IDP_HOSTNAME=sso.apps.willow.lab.rdu2.cee.redhat.com
-IDP_URL=https://${IDP_HOSTNAME}
-IDP_APP_NAME=sso
-
-SSO_NAMESPACE=sso
-REMOTE_USER_SAML_ATTRIBUTE=id
-REMOTE_USER_NAME_SAML_ATTRIBUTE=fullname
-REMOTE_USER_EMAIL_SAML_ATTRIBUTE=email
-REMOTE_USER_PREFERRED_USERNAME_SAML_ATTRIBUTE=username
-
-OCP_REALM=ocp
 REALM_TEST_USER=test-user
 REALM_TEST_USER_PASSWORD=Pa55word1!
 REALM_TEST_USER_EMAIL=me@go.com
@@ -83,9 +83,22 @@ REALM_TEST_USER_FIRSTNAME=Test
 REALM_TEST_USER_LASTNAME=User
 ```
 
-| Variable                      | Description
-|-------------------------------|------------
-| `TODO`                        | TODO
+| Variable                    | Description
+|-----------------------------|------------
+| `SSO_APPLICATION_NAME`      | The name of the app in OpenShift.
+| `SSO_HOSTNAME`              | The hostname requested.  Will be used to create the OpenShift route.
+| `SSO_ADMIN_USERNAME`        | Admin username for logging into the RH-SSO Admin console.
+| `SSO_ADMIN_PASSWORD`        | Admin password for logging into the RH-SSO Admin console.
+| `SSO_REALM`                 | Name of RH-SSO Realm for users.
+| `SSO_NAMESPACE`             | Namespace of the RH-SSO project in OpenShift.
+| `SSO_SAML_METADATA_URL`     | The URL to pull IdP metadata XML for use by the SAML proxy.
+| 
+| `REALM_TEST_USER`           | Username for test user.
+| `REALM_TEST_USER_PASSWORD`  | Password for test user.
+| `REALM_TEST_USER_EMAIL`     | Email for test user.
+| `REALM_TEST_USER_FIRSTNAME` | First name for test user.
+| `REALM_TEST_USER_LASTNAME`  | Last name for test user.
+
 
 #### Log into first master and SUDO to root
 
@@ -104,7 +117,7 @@ This creates an instance of RH-SSO based off the 7.3 template, with no persisten
 ansible-playbook playbooks/install-rh-sso.yaml
 ```
 
-### Option 2: Manaul
+### Option 2: Manual
 
 #### Create project namespace
 
@@ -116,7 +129,7 @@ oc new-project sso
 
 ```sh
 oc process -f ${SAML_UTILITY_PROJECTS_DIR}/rh-sso/sso73-x509-https.yaml \
-  -p=APPLICATION_NAME=${APPLICATION_NAME} \
+  -p=APPLICATION_NAME=${SSO_APPLICATION_NAME} \
   -p=SSO_HOSTNAME=${SSO_HOSTNAME} \
   -p=SSO_ADMIN_USERNAME=${SSO_ADMIN_USERNAME} \
   -p=SSO_ADMIN_PASSWORD=${SSO_ADMIN_PASSWORD} \
@@ -129,7 +142,7 @@ Note that there is no persistent database backing this template.  This is for te
 
 ## Install SAML ServiceProvider Client
 
-If you chose to install the RH-SSO IdP in the previous steps, you will need to configure the saml-auth Client for the corresponding authentication Realm.  This also installs a test-user account in the realm.
+If you chose to install the RH-SSO IdP in the previous steps, you will need to configure the saml-auth Client for the corresponding authentication Realm.  This also installs a test-user account in the realm.  Perform this step after you have created your SAML proxy, as you will need your metadata ServiceProvider XML to establish a client in RH-SSO.
 
 __Note__: because we are adding a configmap to the SSO deploymentconfig, a new instance rolls out with the update.  This in turn requires a configmap update to the saml-auth server.  When debugging, be sure both sides have the correct updates to all certificates.
 
@@ -207,12 +220,12 @@ Get an access token for the API, then make a call to convert the mellon-metadata
 Finally, merge custom prewritten mappings into the Client object to make it ready to call the API create client function.
 
 ```sh
-access_token=`curl -k -d "client_id=admin-cli" -d "username=${IDP_ADMIN_USER}" --data-urlencode "password=${IDP_ADMIN_PASSWORD}" -d "grant_type=password" "${IDP_URL}/auth/realms/master/protocol/openid-connect/token"| jq -r '.access_token'`
+access_token=`curl -k -d "client_id=admin-cli" -d "username=${SSO_ADMIN_USERNAME}" --data-urlencode "password=${SSO_ADMIN_PASSWORD}" -d "grant_type=password" "${SSO_URL}/auth/realms/master/protocol/openid-connect/token"| jq -r '.access_token'`
 curl -k -v \
     -H "Authorization: bearer $access_token" \
     -H "Content-Type: application/json;charset=utf-8" \
     --data "@${SAML_CONFIG_DIR}/saml2/mellon-metadata.xml" \
-    ${IDP_URL}/auth/admin/realms/${OCP_REALM}/client-description-converter > ${SAML_CONFIG_DIR}/saml2/mellon-idp-client.json
+    ${SSO_URL}/auth/admin/realms/${SSO_REALM}/client-description-converter > ${SAML_CONFIG_DIR}/saml2/mellon-idp-client.json
 jq -s '.[0] * .[1]' ${SAML_CONFIG_DIR}/saml2/mellon-idp-client.json ${SAML_UTILITY_PROJECTS_DIR}/rh-sso/idp-mappers.json > ${SAML_CONFIG_DIR}/saml2/mellon-idp-client-with-mappers.json
 ```
 
@@ -234,19 +247,19 @@ After waiting for the pod to restart from the above volume mount, execute these 
 POD_NAME=`oc get pods -n ${SSO_NAMESPACE} | grep -e "sso.*Running" | head -1 | awk '{print $1}'`
 TRUSTSTORE_PASSWORD=`oc rsh -n ${SSO_NAMESPACE} $POD_NAME xmllint --xpath "string(/*[namespace-uri()='urn:jboss:domain:8.0' and local-name()='server']/*[namespace-uri()='urn:jboss:domain:8.0' and local-name()='profile']/*[namespace-uri()='urn:jboss:domain:keycloak-server:1.1' and local-name()='subsystem']/*[namespace-uri()='urn:jboss:domain:keycloak-server:1.1' and local-name()='spi' and @name='truststore']/*[namespace-uri()='urn:jboss:domain:keycloak-server:1.1' and local-name()='provider' and @name='file']/*[namespace-uri()='urn:jboss:domain:keycloak-server:1.1' and local-name()='properties']/*[local-name()='property' and @name='password']/@value)" /opt/eap/standalone/configuration/standalone-openshift.xml`
 oc rsh -n ${SSO_NAMESPACE} $POD_NAME /opt/eap/bin/kcadm.sh config truststore --trustpass $TRUSTSTORE_PASSWORD /opt/eap/keystores/truststore.jks
-oc rsh -n ${SSO_NAMESPACE} $POD_NAME /opt/eap/bin/kcadm.sh config credentials --server https://${IDP_APP_NAME}.${SSO_NAMESPACE}.svc:8443/auth --realm master --user ${IDP_ADMIN_USER} --password ${IDP_ADMIN_PASSWORD}
-oc rsh -n ${SSO_NAMESPACE} $POD_NAME /opt/eap/bin/kcadm.sh create clients -r ${OCP_REALM} -f /mellon-client/mellon-idp-client-with-mappers.json
-oc rsh -n ${SSO_NAMESPACE} $POD_NAME /opt/eap/bin/kcadm.sh create users -r ${OCP_REALM} -s username=${REALM_TEST_USER} -s enabled=true -s email=${REALM_TEST_USER_EMAIL} -s firstName=${REALM_TEST_USER_FIRSTNAME} -s lastName=${REALM_TEST_USER_LASTNAME} -o --fields id,username
-oc rsh -n ${SSO_NAMESPACE} $POD_NAME /opt/eap/bin/kcadm.sh set-password -r ${OCP_REALM} --username ${REALM_TEST_USER} --new-password ${REALM_TEST_USER_PASSWORD}
+oc rsh -n ${SSO_NAMESPACE} $POD_NAME /opt/eap/bin/kcadm.sh config credentials --server https://${SSO_APPLICATION_NAME}.${SSO_NAMESPACE}.svc:8443/auth --realm master --user ${SSO_ADMIN_USERNAME} --password ${SSO_ADMIN_PASSWORD}
+oc rsh -n ${SSO_NAMESPACE} $POD_NAME /opt/eap/bin/kcadm.sh create clients -r ${SSO_REALM} -f /mellon-client/mellon-idp-client-with-mappers.json
+oc rsh -n ${SSO_NAMESPACE} $POD_NAME /opt/eap/bin/kcadm.sh create users -r ${SSO_REALM} -s username=${REALM_TEST_USER} -s enabled=true -s email=${REALM_TEST_USER_EMAIL} -s firstName=${REALM_TEST_USER_FIRSTNAME} -s lastName=${REALM_TEST_USER_LASTNAME} -o --fields id,username
+oc rsh -n ${SSO_NAMESPACE} $POD_NAME /opt/eap/bin/kcadm.sh set-password -r ${SSO_REALM} --username ${REALM_TEST_USER} --new-password ${REALM_TEST_USER_PASSWORD}
 ```
 
 Update configmap with new idp data (restart created new)
 
 ```sh
-curl -k -o ${SAML_CONFIG_DIR}/saml2/idp-metadata.xml ${IDP_SAML_METADATA_URL}
-oc delete cm httpd-saml2-config -n ${SAML_OCP_PROJECT}
-oc create cm httpd-saml2-config --from-file=${SAML_CONFIG_DIR}/saml2 -n ${SAML_OCP_PROJECT}
-oc rollout latest dc/saml-auth -n ${SAML_OCP_PROJECT}
+curl -k -o ${SAML_CONFIG_DIR}/saml2/idp-metadata.xml ${SSO_SAML_METADATA_URL}
+oc delete cm httpd-saml2-config -n ${SAML_PROXY_NAMESPACE}
+oc create cm httpd-saml2-config --from-file=${SAML_CONFIG_DIR}/saml2 -n ${SAML_PROXY_NAMESPACE}
+oc rollout latest dc/saml-auth -n ${SAML_PROXY_NAMESPACE}
 ```
 
 Note: because we are adding a configmap to the SSO deploymentconfig, a new instance rolls out with the update.  This in turn requires a configmap update to the saml-auth server.  When debugging, be sure both sides have the correct updates to all certificates.
