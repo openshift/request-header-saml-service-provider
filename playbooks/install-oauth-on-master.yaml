@@ -7,7 +7,7 @@
         path: /etc/origin/master/master-config.yaml
         regexp: '^  - challenge((.|\n)*)(HTPasswdPasswordIdentityProvider\n|v1\n|htpasswd\n)'
         replace: ''
-      when: ansible_facts['remove_htpasswd_provider'] == true
+      when: remove_htpasswd_provider|bool == true
     - name: update master-config.yaml - add new auth provider
       blockinfile:
         path: /etc/origin/master/master-config.yaml
