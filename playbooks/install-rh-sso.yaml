@@ -8,9 +8,9 @@
     - name: Run template install
       shell: |
         oc process -f ../rh-sso/sso73-x509-https.yaml \
-        -p=APPLICATION_NAME={{ idp_app_name }} \
-        -p=SSO_HOSTNAME={{ idp_hostname }} \
-        -p=SSO_ADMIN_USERNAME={{ idp_admin_user }} \ 
-        -p=SSO_ADMIN_PASSWORD={{ idp_admin_password }} \
-        -p=SSO_REALM={{ ocp_realm }} \
+        -p=APPLICATION_NAME={{ sso_application_name }} \
+        -p=SSO_HOSTNAME={{ sso_hostname }} \
+        -p=SSO_ADMIN_USERNAME={{ sso_admin_username }} \ 
+        -p=SSO_ADMIN_PASSWORD={{ sso_admin_password }} \
+        -p=SSO_REALM={{ sso_realm }} \
         | oc create -f-
