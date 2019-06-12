@@ -8,6 +8,6 @@
       replace:
         path: webconsole-config.yaml
         regexp: "logoutPublicURL.*$"
-        replace: "logoutPublicURL: '{{ saml_auth_url }}/mellon/logout?ReturnTo={{ saml_auth_url}}/login-ocp'"
+        replace: "logoutPublicURL: '{{ saml_proxy_url }}/mellon/logout?ReturnTo={{ saml_proxy_url}}/login-ocp'"
     - name: apply updated configmap
       shell: oc apply -f webconsole-config.yaml -n openshift-web-console
