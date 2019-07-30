@@ -169,7 +169,7 @@ Helpful logs to look at while debuging.
 #### SAML Proxy Container
 This is assuming you are using the debug image.
 
-* `/etc/httpd/conf.d/mellon_diagnostics`
+* `/var/log/httpd/mellon_diagnostics`
   * contains the output of `mod_auth_mellon-diagnostics`
 * stdout
   * contains the output of `mod_dumpio` plus other helpful logs
