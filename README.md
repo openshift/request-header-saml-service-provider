@@ -194,4 +194,4 @@ Helpful terms and their defintions used throughout this document.
 | SP         | Service Provider
 | IdP        | Identity Provider
 | SAML Proxy | The Apache mod\_mellon\_saml container deployed by these instructions to proxy the SAML communication from your IdP to OpenSHift via the RequestHeader Authentication OpenShift oAuth provider. In the context of the SAML communication the SAML proxy is also the SP even though it is acting as a go between for OpenShift.
-| RH-SSO     | Red Hat Single Sign On, the Red Hat product of the Keycloack project.
+| RH-SSO     | Red Hat Single Sign On, the Red Hat product of the Keycloak project.
